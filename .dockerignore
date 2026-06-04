@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+data/
+.git/
+.langgraph_api/
+.pytest_cache/
+node_modules/
+frontend/
+chroma_db/
+*.pem
+.DS_Store

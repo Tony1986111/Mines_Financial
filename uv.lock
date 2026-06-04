@@ -438,6 +438,22 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.136.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/81/2d/ff8d91d7b564d464629a0fd50a4489c97fcb836ac230bf3a7269232a9b1f/fastapi-0.136.3.tar.gz", hash = "sha256:e487fae93ad408e6f47641ee4dfe389864fd7bec92e547ea8498fc13f43e83ab", size = 396410, upload-time = "2026-05-23T18:53:15.192Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/82/45359b62a067409bd929ae8a56b8ed13e5a8c8a61194b3c236920999ab83/fastapi-0.136.3-py3-none-any.whl", hash = "sha256:3d2a69bdf04b7e9f3afa292c3bc7a98816bbfafa10bc9b45f3f3700d2f761620", size = 117481, upload-time = "2026-05-23T18:53:16.924Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.29.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1122,6 +1138,21 @@ wheels = [
 ]
 
 [[package]]
+name = "langchain-tavily"
+version = "0.2.18"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "langchain" },
+    { name = "langchain-core" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d6/6c/b309ef3062b189a82463dc93553804566e71aa393f9ba8954750793c1a6f/langchain_tavily-0.2.18.tar.gz", hash = "sha256:cd7859ae1a6ce79236580ef67072ff5fc43c7ded94e7eac38ff04209ca85a320", size = 25378, upload-time = "2026-04-16T15:23:24.526Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/9c/0c043e4434b1823f0ac194f66036cbb0569275a99dcb890e0891ecd34fb2/langchain_tavily-0.2.18-py3-none-any.whl", hash = "sha256:dccf3ad1c50e2cb2a89bec11727555805c9df8abd42c1f3ad42ccad86e28aa44", size = 30814, upload-time = "2026-04-16T15:23:23.424Z" },
+]
+
+[[package]]
 name = "langchain-text-splitters"
 version = "1.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1176,6 +1207,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6d/51/5a2dc42e8b5d5942b933b5b7237eae5a4dbc92508a04727c263dd383ad8a/langgraph_checkpoint_postgres-3.1.0.tar.gz", hash = "sha256:02bff4ab63d9dae8eab3a9640fce1d479da8965c9fba7b0dc04cb1f7c56f0a55", size = 148473, upload-time = "2026-05-12T03:40:10.599Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2f/cd/eff9b82bc3b5f62d481b437099f44f3ef7b1d907f166fb4ee25e8f84a1e7/langgraph_checkpoint_postgres-3.1.0-py3-none-any.whl", hash = "sha256:814cce2ef35d792bf07b090a95eed004f1acac0724fe6605536b13f6d1e7032c", size = 48988, upload-time = "2026-05-12T03:40:08.925Z" },
+]
+
+[[package]]
+name = "langgraph-cli"
+version = "0.4.27"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "httpx" },
+    { name = "langgraph-sdk" },
+    { name = "pathspec" },
+    { name = "python-dotenv" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/02/21/046b2345d83427a59ebdac797fbe343bb8d1e575560667846f7346733774/langgraph_cli-0.4.27.tar.gz", hash = "sha256:67a64b67dddc8c670d77cc4c9663a7f8e924eaeb8857a926e87f239b699ef8f6", size = 1045499, upload-time = "2026-05-28T14:25:35.13Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/89/4bda72ff33172ad15ddb2c57c5b998bf9309e7c4890d3d84a8c8ed6333d4/langgraph_cli-0.4.27-py3-none-any.whl", hash = "sha256:d53bddfc4e7b6e47871bedb34ccc476fd5e4e97f8678dd453ecac597c5f11ff1", size = 78002, upload-time = "2026-05-28T14:25:34.127Z" },
 ]
 
 [[package]]
@@ -1315,11 +1362,13 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "chromadb" },
+    { name = "fastapi" },
     { name = "langchain" },
     { name = "langchain-chroma" },
     { name = "langchain-community" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
+    { name = "langchain-tavily" },
     { name = "langchain-text-splitters" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-postgres" },
@@ -1332,10 +1381,12 @@ dependencies = [
     { name = "streamlit" },
     { name = "tavily-python" },
     { name = "tqdm" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "langgraph-cli" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -1343,11 +1394,13 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "chromadb", specifier = ">=1.0.0" },
+    { name = "fastapi", specifier = ">=0.115.0" },
     { name = "langchain", specifier = ">=0.3.0" },
     { name = "langchain-chroma", specifier = ">=0.2.0" },
     { name = "langchain-community", specifier = ">=0.3.0" },
     { name = "langchain-core", specifier = ">=1.0.0" },
     { name = "langchain-openai", specifier = ">=0.3.0" },
+    { name = "langchain-tavily", specifier = ">=0.2.18" },
     { name = "langchain-text-splitters", specifier = ">=1.0.0" },
     { name = "langgraph", specifier = ">=0.6.0" },
     { name = "langgraph-checkpoint-postgres", specifier = ">=2.0.0" },
@@ -1360,10 +1413,12 @@ requires-dist = [
     { name = "streamlit", specifier = ">=1.40.0" },
     { name = "tavily-python", specifier = ">=0.5.0" },
     { name = "tqdm", specifier = ">=4.66.0" },
+    { name = "uvicorn", specifier = ">=0.32.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "langgraph-cli", specifier = ">=0.4.27" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "ruff", specifier = ">=0.8.0" },
 ]
@@ -1920,6 +1975,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/31/89/8fc1c268969fac43688d65fd92e67df24bd128d53cb4d2eee534cd307399/pandas-3.0.3-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:9c39be2d709d01fa972a0cabc522389fceca4f3969332ba25a7d6c5802cf976a", size = 11828897, upload-time = "2026-05-11T18:54:17.146Z" },
     { url = "https://files.pythonhosted.org/packages/56/3b/e7d20dea247a3e6dc0bd8a6953854afbedc03951def4e7371e05e7263e25/pandas-3.0.3-cp314-cp314t-win_amd64.whl", hash = "sha256:4db8c527972a821cf5286b40ccc57642a39bc62e62022b42f99f8a67fca8c3a1", size = 10900855, upload-time = "2026-05-11T18:54:19.72Z" },
     { url = "https://files.pythonhosted.org/packages/0f/54/68a0978d1ef8502b8492099beaa6e7a0c1b32e3b5d4f677f5810cb08711c/pandas-3.0.3-cp314-cp314t-win_arm64.whl", hash = "sha256:b2c95f8bfc1ee412bf482605d7bfd30c12d1d26bd59fdd91efeef1d4718decb1", size = 9466464, upload-time = "2026-05-11T18:54:22.754Z" },
+]
+
+[[package]]
+name = "pathspec"
+version = "1.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/82/42f767fc1c1143d6fd36efb827202a2d997a375e160a71eb2888a925aac1/pathspec-1.1.1.tar.gz", hash = "sha256:17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a", size = 135180, upload-time = "2026-04-27T01:46:08.907Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl", hash = "sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189", size = 57328, upload-time = "2026-04-27T01:46:07.06Z" },
 ]
 
 [[package]]

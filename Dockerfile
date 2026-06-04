@@ -1,0 +1,19 @@
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN pip install uv --no-cache-dir
+
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+COPY . .
+
+EXPOSE 8000
+CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

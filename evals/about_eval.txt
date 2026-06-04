@@ -1,0 +1,192 @@
+Mines Financial Eval Runner Command Reference
+============================================
+
+
+1. Run all mock evals
+---------------------
+
+Use this when you want a fast, free check that the JSONL cases and evaluator
+logic are wired correctly. This does not call the real LLM or retriever.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock
+
+
+2. Run all real evals
+---------------------
+
+Use this only when you intentionally want to call the real LLM / retrieval
+nodes. This can be slower and may use API credits.
+
+Example:
+
+  uv run python evals/run_eval.py --mode real
+
+
+3. Run one mock suite
+---------------------
+
+Use this when you only want to validate one category of cases without calling
+real external services.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock --suite routing
+
+
+4. Run one real suite
+---------------------
+
+Use this when you want to test one category with real model or retrieval calls.
+This is safer than running every real eval at once.
+
+Example:
+
+  uv run python evals/run_eval.py --mode real --suite routing
+
+
+5. Run the first N cases in a suite
+----------------------------------
+
+Use this when you want a small sample before running a full suite. This is
+especially useful in real mode to control cost.
+
+Example:
+
+  uv run python evals/run_eval.py --mode real --suite routing --limit 3
+
+
+6. Run the first N cases across every suite
+------------------------------------------
+
+Use this when you want a quick smoke test across all eval categories.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock --suite all --limit 2
+
+
+7. Run one specific case by ID
+-----------------------------
+
+Use this when you are debugging one case and do not want to run the whole
+suite. The case ID must match an id from one of the JSONL files.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock --suite routing --id routing_003_single_report_fact
+
+
+8. Run one specific case in real mode
+------------------------------------
+
+Use this when you want to inspect the real LLM behaviour for one selected
+case. This is the best mode for careful debugging.
+
+Example:
+
+  uv run python evals/run_eval.py --mode real --suite routing --id routing_003_single_report_fact
+
+
+9. Run multiple specific cases
+------------------------------
+
+Use this when you want to compare a small hand-picked set of cases. Pass
+--id more than once.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock --suite routing --id routing_003_single_report_fact --id routing_005_calculation_required
+
+
+10. Run retrieval mock cases
+----------------------------
+
+Use this to check whether retrieval evaluator rules work with synthetic
+documents. It does not prove that the real retriever finds the right documents.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock --suite retrieval
+
+
+11. Run retrieval real cases with a limit
+----------------------------------------
+
+Use this when you want to call the real retrieval subgraph, but only for a
+small number of cases. Retrieval may require local indexes and API keys.
+
+Example:
+
+  uv run python evals/run_eval.py --mode real --suite retrieval --limit 2
+
+
+12. Run calculation mock cases
+------------------------------
+
+Use this to validate calculation case structure and evaluator logic. This does
+not call the full calculator agent.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock --suite calculation
+
+
+13. Run calculation real cases with a limit
+------------------------------------------
+
+Use this to test whether real routing-like logic recognises calculation needs.
+Start with a small limit to control cost.
+
+Example:
+
+  uv run python evals/run_eval.py --mode real --suite calculation --limit 2
+
+
+14. Run boundary mock cases
+---------------------------
+
+Use this to validate boundary case structure and fallback-related evaluator
+logic.
+
+Example:
+
+  uv run python evals/run_eval.py --mode mock --suite boundary
+
+
+15. Run boundary real cases with a limit
+---------------------------------------
+
+Use this to test a few real edge cases, such as vague questions or unsupported
+companies. This may call the LLM depending on the case.
+
+Example:
+
+  uv run python evals/run_eval.py --mode real --suite boundary --limit 2
+
+
+16. Show the command-line help
+------------------------------
+
+Use this when you want to see all supported arguments directly from the script.
+
+Example:
+
+  uv run python evals/run_eval.py --help
+
+
+Recommended workflow
+====================
+
+For normal development, start with mock mode:
+
+  uv run python evals/run_eval.py --mode mock
+
+For a cheap real smoke test, run only a few routing cases:
+
+  uv run python evals/run_eval.py --mode real --suite routing --limit 3
+
+For debugging one exact problem, run by case ID:
+
+  uv run python evals/run_eval.py --mode real --suite routing --id routing_003_single_report_fact

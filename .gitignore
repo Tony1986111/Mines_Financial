@@ -6,16 +6,67 @@ __pycache__/
 .venv/
 
 chroma_db/
-bm25_index.pkl
+bm25_index/
 
 .pytest_cache/
 .ruff_cache/
 
 
 
-*.md
-*.txt
+/*.md
+/*.txt
+!/README.md
+!/requirements.txt
 *.html
 
+#folders
 zzz_helper/
-data/data/
+data/*
+!data/reports_source_URL.md
+AWS/
+review/
+ingest/*
+!ingest/about_ingest.md
+!ingest/fewshot*.png
+!ingest/step_1_ingest_text.py
+!ingest/step_2_PyMuPDF_filter.py
+!ingest/step_3_ingest_vision.py
+!ingest/step_3_prompts.py
+!ingest/step_4_embed_vision.py
+!ingest/step_5_bm25.py
+
+# Frontend / Next.js
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/tsconfig.tsbuildinfo
+
+# LangGraph local runtime state
+.langgraph_api/
+
+# Environment files
+.env.*
+!.env.example
+!**/.env.example
+
+# Local DB / serialized cache
+*.sqlite3
+*.pkl
+*.pckl
+
+# Build / coverage / type-check caches
+dist/
+build/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.mypy_cache/
+*.egg-info/
+
+# Logs
+*.log
+
+review/
+graph_for_studio.py
