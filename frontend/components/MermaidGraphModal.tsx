@@ -136,9 +136,9 @@ linkStyle default stroke:${palette.line},stroke-width:1.3px
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#030810]/80 px-4 py-6 backdrop-blur-md">
-      <div className="flex h-[min(820px,calc(100vh-48px))] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-[#162840] bg-white shadow-2xl shadow-black/40 dark:border-[#1e3858] dark:bg-[#091524]">
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-[#cddcea] dark:border-[#162840] px-5 bg-[#f4f8fd] dark:bg-[#091524]">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#030810]/80 px-2 py-3 backdrop-blur-md md:px-4 md:py-6">
+      <div className="flex h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-[#162840] bg-white shadow-2xl shadow-black/40 dark:border-[#1e3858] dark:bg-[#091524] md:h-[min(820px,calc(100vh-48px))]">
+        <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-3 border-b border-[#cddcea] dark:border-[#162840] px-3 py-3 bg-[#f4f8fd] dark:bg-[#091524] md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <div className="min-w-0">
             <h2 className="text-sm font-bold tracking-tight text-[#0a1e38] dark:text-[#dce8f8]">
               LangGraph Workflow
@@ -147,7 +147,7 @@ linkStyle default stroke:${palette.line},stroke-width:1.3px
               Workflow structure and graph exports
             </p>
           </div>
-          <div className="ml-4 flex rounded-lg border border-[#cddcea] dark:border-[#162840] bg-[#eef4fb] dark:bg-[#060c14] p-0.5">
+          <div className="order-last flex w-full overflow-x-auto rounded-lg border border-[#cddcea] dark:border-[#162840] bg-[#eef4fb] dark:bg-[#060c14] p-0.5 md:order-none md:ml-4 md:w-auto">
             {viewButtons.map((item) => (
               <button
                 key={item.id}
@@ -164,14 +164,14 @@ linkStyle default stroke:${palette.line},stroke-width:1.3px
           </div>
           <button
             onClick={onClose}
-            className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-sm text-[#7a9ab8] transition-colors hover:bg-[#e8f0fa] hover:text-[#0a1e38] dark:text-[#3d5878] dark:hover:bg-[#0d1c2e] dark:hover:text-[#c4d8f0]"
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sm text-[#7a9ab8] transition-colors hover:bg-[#e8f0fa] hover:text-[#0a1e38] dark:text-[#3d5878] dark:hover:bg-[#0d1c2e] dark:hover:text-[#c4d8f0] md:h-7 md:w-7"
             title="Close"
           >
             ✕
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto bg-[#eef4fb] p-5 dark:bg-[#060c14]">
+        <div className="flex-1 overflow-auto bg-[#eef4fb] p-3 dark:bg-[#060c14] md:p-5">
           {view === "workflow" && loading && (
             <div className="flex h-full items-center justify-center text-sm text-[#7a9ab8] dark:text-[#3d5878]">
               Loading LangGraph workflow...
@@ -186,27 +186,27 @@ linkStyle default stroke:${palette.line},stroke-width:1.3px
 
           {view === "workflow" && !loading && !error && !renderError && svg && (
             <div
-              className="flex min-h-full min-w-[720px] items-center justify-center rounded-lg border border-[#cddcea] bg-[#f7fbff] p-6 shadow-sm dark:border-[#162840] dark:bg-[#071424] [&_.edgeLabel]:rounded [&_.nodeLabel]:text-[12px] [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:w-[860px] [&_svg]:max-w-full"
+              className="flex min-h-full min-w-0 items-center justify-center rounded-lg border border-[#cddcea] bg-[#f7fbff] p-3 shadow-sm dark:border-[#162840] dark:bg-[#071424] md:min-w-[720px] md:p-6 [&_.edgeLabel]:rounded [&_.nodeLabel]:text-[12px] [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-h-[calc(100dvh-12rem)] [&_svg]:w-full [&_svg]:max-w-full md:[&_svg]:max-h-none md:[&_svg]:w-[860px]"
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           )}
 
           {view === "studio" && (
-            <div className="flex min-h-full min-w-[720px] items-center justify-center rounded-lg border border-[#162840] bg-[#0d1c2e] p-5 shadow-sm dark:border-[#162840]">
+            <div className="flex min-h-full min-w-0 items-center justify-center rounded-lg border border-[#162840] bg-[#0d1c2e] p-3 shadow-sm dark:border-[#162840] md:min-w-[720px] md:p-5">
               <img
                 src={`${API_BASE}/assets/graph.png?v=${cacheBuster}`}
                 alt="Studio graph"
-                className="h-auto w-auto max-h-[476px] max-w-[70%] rounded object-contain"
+                className="h-auto w-auto max-h-[calc(100dvh-12rem)] max-w-full rounded object-contain md:max-h-[476px] md:max-w-[70%]"
               />
             </div>
           )}
 
           {view === "subgraph" && (
-            <div className="flex min-h-full min-w-[720px] items-center justify-center rounded-lg border border-[#162840] bg-[#0d1c2e] p-5 shadow-sm dark:border-[#162840]">
+            <div className="flex min-h-full min-w-0 items-center justify-center rounded-lg border border-[#162840] bg-[#0d1c2e] p-3 shadow-sm dark:border-[#162840] md:min-w-[720px] md:p-5">
               <img
                 src={`${API_BASE}/assets/with_subgraph.png?v=${cacheBuster}`}
                 alt="Graph with retrieval subgraph"
-                className="h-auto w-auto max-h-[476px] max-w-[70%] rounded object-contain"
+                className="h-auto w-auto max-h-[calc(100dvh-12rem)] max-w-full rounded object-contain md:max-h-[476px] md:max-w-[70%]"
               />
             </div>
           )}

@@ -40,7 +40,7 @@ function parseVisionTable(content: string): {
   rows: string[][];
 } {
   let headers: string[][] = [];
-  const rows: string[][] = [];
+  let rows: string[][] = [];
   let title = "";
 
   for (const line of content.split("\n")) {
@@ -140,7 +140,7 @@ function renderContent(
             <sup className="text-[0.7em] font-bold text-[#7eb3e8] align-super leading-none ml-0.5 cursor-help underline decoration-dotted decoration-[#7eb3e8]/50">
               {sortedText}
             </sup>
-            <div className="absolute bottom-full left-0 mb-2 w-80 p-3 bg-[#091524] border border-[#162840] rounded-xl text-xs shadow-xl shadow-black/30 opacity-0 group-hover/cite:opacity-100 transition-opacity pointer-events-none z-50 whitespace-normal">
+            <div className="absolute bottom-full left-1/2 mb-2 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 p-3 bg-[#091524] border border-[#162840] rounded-xl text-xs shadow-xl shadow-black/30 opacity-0 group-hover/cite:opacity-100 transition-opacity pointer-events-none z-50 whitespace-normal md:left-0 md:w-80 md:translate-x-0">
               {srcs.map(({ n, src }, idx) => (
                 <div key={n} className={idx < srcs.length - 1 ? "mb-2 pb-2 border-b border-[#1e3858]" : ""}>
                   <p className="font-semibold text-[#7eb3e8] mb-1 leading-snug flex items-center gap-1.5">
@@ -198,17 +198,17 @@ function SourceModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 md:p-4"
       onClick={onClose}
     >
       <div
-        className="w-fit max-w-[90vw] max-h-[80vh] flex flex-col bg-[#0d1c2e] border border-[#1e3858] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-2xl border border-[#1e3858] bg-[#0d1c2e] shadow-2xl shadow-black/60 md:w-fit md:max-w-[90vw] md:max-h-[80vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#1e3858] shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-[#1e3858] px-3 py-3.5 shrink-0 md:flex-nowrap md:gap-3 md:px-5">
           <span className="text-[#c4880c] font-bold text-sm">[{index}]</span>
-          <span className="flex-1 text-[#c4d8f0] text-sm font-medium leading-snug">{source.label}</span>
+          <span className="min-w-0 flex-1 text-[#c4d8f0] text-sm font-medium leading-snug break-words">{source.label}</span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider shrink-0 ${
             isTable
               ? "bg-violet-500/15 text-violet-400 border border-violet-500/20"
@@ -226,7 +226,7 @@ function SourceModal({
         </div>
 
         {/* Content */}
-        <div className="overflow-auto p-5 flex-1">
+        <div className="overflow-auto p-3 flex-1 md:p-5">
           {!source.full_content ? (
             <p className="text-[#5a7a9a] text-sm italic">内容不可用</p>
           ) : isTable && parsed ? (
@@ -268,7 +268,7 @@ function SourceModal({
               </table>
             </div>
           ) : (
-            <pre className="text-xs text-[#a8c4e0] whitespace-pre-wrap leading-relaxed font-mono">
+            <pre className="text-xs text-[#a8c4e0] whitespace-pre-wrap break-words leading-relaxed font-mono">
               {source.full_content}
             </pre>
           )}
@@ -317,11 +317,11 @@ export default function ChatMessage({
     const cards = message.cards ?? [];
     if (cards.length === 0) return null;
     return (
-      <div className="flex gap-3 mb-3">
+      <div className="flex gap-2.5 mb-3 md:gap-3">
         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#1e5cba] to-[#1a4a8a] shrink-0 flex items-center justify-center text-[10px] font-bold text-white mt-0.5 ring-1 ring-white/10">
           AI
         </div>
-        <div className="flex-1 flex flex-col gap-2">
+        <div className="min-w-0 flex-1 flex flex-col gap-2">
           {cards.map(card => (
             <ProgressCard key={card.id} card={card} />
           ))}
@@ -348,7 +348,7 @@ export default function ChatMessage({
 
   return (
     <>
-      <div className={`flex gap-3 mb-4 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+      <div className={`flex gap-2.5 mb-4 md:gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
         <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold mt-0.5 ring-1 ring-white/10 ${
           isUser
             ? "bg-[#1a4a8a] text-white"
@@ -357,7 +357,7 @@ export default function ChatMessage({
           {isUser ? "U" : "AI"}
         </div>
 
-        <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+        <div className={`min-w-0 max-w-[calc(100%-2.375rem)] overflow-hidden rounded-2xl px-3.5 py-3 text-sm leading-relaxed [overflow-wrap:anywhere] md:max-w-[75%] md:px-4 ${
           isUser
             ? "bg-gradient-to-b from-[#1e5cba] to-[#1a4a8a] text-white rounded-tr-sm shadow-sm shadow-[#1a4a8a]/20"
             : "bg-white dark:bg-[#0d1c2e] text-[#0a1e38] dark:text-[#c4d8f0] border border-[#cddcea] dark:border-[#162840] rounded-tl-sm shadow-sm dark:shadow-none"
@@ -392,7 +392,7 @@ export default function ChatMessage({
 
           {/* Sources bar */}
           {!isUser && sources.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[#162840] dark:border-[#1e3858]">
+          <div className="mt-3 pt-3 border-t border-[#162840] dark:border-[#1e3858]">
               <p className="text-[10px] font-semibold text-[#5a7a9a] uppercase tracking-wider mb-2">
                 Sources
               </p>
@@ -403,10 +403,10 @@ export default function ChatMessage({
                     <button
                       key={idx}
                       onClick={() => setActiveSourceIdx(idx)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors bg-[#091524] border-[#1e3858] text-[#7a9ab8] hover:border-[#7eb3e8]/40 hover:text-[#a8c4e0] hover:bg-[#0f2035]"
+                      className="w-full md:w-auto flex min-w-0 items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors bg-[#091524] border-[#1e3858] text-[#7a9ab8] hover:border-[#7eb3e8]/40 hover:text-[#a8c4e0] hover:bg-[#0f2035]"
                     >
-                      <span className="text-[#c4880c] font-bold">[{idx + 1}]</span>
-                      <span className="max-w-[180px] truncate">{src.label}</span>
+                      <span className="text-[#c4880c] font-bold shrink-0">[{idx + 1}]</span>
+                      <span className="min-w-0 flex-1 md:flex-none md:max-w-[180px] truncate">{src.label}</span>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${
                         isTable
                           ? "bg-violet-500/15 text-violet-400"

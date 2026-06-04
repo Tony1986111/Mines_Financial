@@ -223,7 +223,7 @@ export default function GraphPanel({ events, visible, width, onToggle }: GraphPa
   return (
     <aside
       className="shrink-0 flex flex-col border-l border-[#cddcea] dark:border-[#162840] bg-[#f4f8fd] dark:bg-[#091524]"
-      style={{ width: visible ? width : 36 }}
+      style={{ width: visible ? `min(${width}px, 100vw)` : 36 }}
     >
       {/* Toggle button */}
       <div className="h-12 flex items-center border-b border-[#cddcea] dark:border-[#162840] shrink-0 px-2">

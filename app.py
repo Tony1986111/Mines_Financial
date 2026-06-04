@@ -22,9 +22,10 @@ app = FastAPI(title="ASX Mining Financial Chatbot API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://mines.melailab.com",  
-        "http://localhost:3000",        
-        "http://localhost:3001",    
+        "https://mines.melailab.com",
+        "http://mines.melailab.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
     ],
     allow_methods=["*"],
     allow_headers=["*"],

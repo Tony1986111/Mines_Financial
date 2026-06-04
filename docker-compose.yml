@@ -21,6 +21,7 @@ services:
     env_file: .env
     volumes:
       - ./chroma_db:/app/chroma_db
+      - ./bm25_index:/app/bm25_index
       - ./assets:/app/assets
     depends_on:
       postgres:

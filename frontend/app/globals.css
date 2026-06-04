@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  height: 100%;
+}
+
+.mobile-sidebar-shell {
+  width: min(var(--sidebar-width, 256px), calc(100vw - 1rem));
+}
+
+@media (min-width: 768px) {
+  .mobile-sidebar-shell {
+    width: var(--sidebar-width, 256px);
+  }
+}
+
+@supports (height: 100dvh) {
+  .app-shell {
+    height: 100dvh;
+  }
+}
+
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #1e3858; border-radius: 4px; }

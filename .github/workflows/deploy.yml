@@ -1,0 +1,24 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]        # Trigger only on pushes to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Use the free Ubuntu runner provided by GitHub
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.0  # Pin the version to avoid deployment issues from third-party changes
+        with:
+          host: ${{ secrets.EC2_HOST }}    # Read from Secrets so the value is not exposed in logs
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e                          # Stop immediately if any command fails to avoid silent errors
+            cd /home/ubuntu/mines_financial
+            git pull origin main
+            docker compose up -d --build
+            docker image prune -f
+            echo "Deployed at $(date '+%Y-%m-%d %H:%M:%S UTC')"

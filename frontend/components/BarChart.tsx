@@ -76,8 +76,10 @@ export default function BarChart({ spec }: { spec: ChartSpec }) {
   };
 
   return (
-    <div className="my-3 p-4 rounded-xl bg-[#0d1e33] border border-[#1e3a5f] shadow-sm">
-      <Bar data={data} options={options} />
+    <div className="my-3 overflow-x-auto rounded-xl bg-[#0d1e33] border border-[#1e3a5f] shadow-sm">
+      <div className="min-w-[320px] p-3 md:p-4">
+        <Bar data={data} options={options} />
+      </div>
     </div>
   );
 }

@@ -243,6 +243,21 @@ const SUGGESTIONS: { category: string; icon: string; items: string[] }[] = [
   },
 ];
 
+const MOBILE_PROGRESS_LABELS: Record<string, string> = {
+  compress_context: "Compressing",
+  memory: "Memory",
+  retrieve_decision: "Routing",
+  dynamic_tool_selector: "Selecting tools",
+  clarify: "Clarifying",
+  retrieval_agent: "Searching reports",
+  news_agent: "Searching news",
+  calculator_agent: "Calculating",
+  aggregate: "Combining",
+  guardrails: "Checking",
+  fallback: "Fallback",
+  answer: "Answering",
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -266,6 +281,8 @@ export default function Home() {
   const [backendOk, setBackendOk] = useState(true);
   const [threads, setThreads] = useState<StoredThread[]>([]);
   const [isDark, setIsDark] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [mobileGraphOpen, setMobileGraphOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [mermaidOpen, setMermaidOpen] = useState(false);
   const [mermaidDiagram, setMermaidDiagram] = useState<string | null>(null);
@@ -339,7 +356,7 @@ export default function Home() {
 
   // Init theme + thread list
   useEffect(() => {
-    const saved = localStorage.getItem("theme") ?? "dark";
+    const saved = localStorage.getItem("theme") ?? "light";
     setIsDark(saved === "dark");
 
     const localThreads = loadThreads();
@@ -455,6 +472,7 @@ export default function Home() {
       setLoading(false);
     }
 
+    setMobileSidebarOpen(false);
     setThreadId(t.id);
     sessionStorage.setItem(ACTIVE_THREAD_KEY, t.id);
     setGraphEvents(t.graphEvents ?? []);
@@ -691,14 +709,33 @@ export default function Home() {
   // Show loading dots only when loading but no progress message has appeared yet
   const lastMsg = messages[messages.length - 1];
   const showLoadingDots = loading && (!lastMsg || lastMsg.role !== "progress");
+  const runningEvent = [...graphEvents].reverse().find(e => e.status === "running");
+  const latestEvent = graphEvents[graphEvents.length - 1];
+  const progressStage = runningEvent
+    ? (MOBILE_PROGRESS_LABELS[runningEvent.node] ?? runningEvent.node)
+    : latestEvent
+    ? (MOBILE_PROGRESS_LABELS[latestEvent.node] ?? latestEvent.node)
+    : "all stages";
+  const progressActive = Boolean(runningEvent);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="app-shell flex h-screen overflow-hidden">
+
+      {/* Mobile sidebar backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
 
       {/* ── Sidebar ─────────────────────────────────────────── */}
       <aside
-        className="bg-[#f4f8fd] dark:bg-[#091524] border-r border-[#cddcea] dark:border-[#162840] flex flex-col shrink-0 overflow-hidden"
-        style={{ width: leftWidth }}
+        className={`mobile-sidebar-shell bg-[#f4f8fd] dark:bg-[#091524] border-r border-[#cddcea] dark:border-[#162840] flex flex-col overflow-hidden
+          fixed inset-y-0 left-0 z-50 transition-transform duration-300
+          md:relative md:inset-auto md:z-auto md:shrink-0 md:transition-none
+          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        style={{ "--sidebar-width": `${leftWidth}px` } as React.CSSProperties}
       >
 
         {/* Logo */}
@@ -706,6 +743,13 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <span className="text-lg">⛏️</span>
             <span className="font-bold text-sm tracking-tight text-[#0a1e38] dark:text-[#dce8f8]">ASX Mining</span>
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sm text-[#7a9ab8] transition-colors hover:bg-[#e8f0fa] hover:text-[#0a1e38] dark:text-[#3d5878] dark:hover:bg-[#0d1c2e] dark:hover:text-[#c4d8f0] md:hidden"
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
           </div>
           <p className="text-[11px] text-[#7a9ab8] dark:text-[#3d5878] mt-0.5 font-mono">Financial Report Q&A</p>
         </div>
@@ -778,7 +822,7 @@ export default function Home() {
               <button
                 onClick={() => handleDeleteThread(t.id)}
                 title="Delete thread"
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-[#94b0cc] dark:text-[#3d5878] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all text-[10px]"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 md:w-5 md:h-5 rounded flex items-center justify-center text-[#94b0cc] dark:text-[#3d5878] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all text-[10px]"
               >
                 ✕
               </button>
@@ -805,13 +849,19 @@ export default function Home() {
             <span className="text-base">{isDark ? "☀️" : "🌙"}</span>
             {isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
           </button>
+          {threadId && (
+            <div className="md:hidden rounded-lg border border-[#cddcea] bg-white px-2.5 py-2 dark:border-[#162840] dark:bg-[#0d1c2e]">
+              <p className="text-[9px] uppercase tracking-[0.15em] text-[#7a9ab8] dark:text-[#3d5878] font-bold mb-1">Thread ID</p>
+              <p className="select-all break-all font-mono text-[10px] leading-relaxed text-[#5a7a9a] dark:text-[#7a9ab8]">{threadId}</p>
+            </div>
+          )}
         </div>
       </aside>
 
       {/* ── Left resize handle ──────────────────────────────── */}
       <div
         onMouseDown={(e) => startDrag("left", e)}
-        className="w-1 shrink-0 cursor-col-resize group relative hover:bg-[#1a4a8a]/10 dark:hover:bg-[#c4880c]/10 transition-colors"
+        className="hidden md:block w-1 shrink-0 cursor-col-resize group relative hover:bg-[#1a4a8a]/10 dark:hover:bg-[#c4880c]/10 transition-colors"
         title="Drag to resize"
       >
         <div className="absolute inset-y-0 left-0 w-px bg-[#cddcea] dark:bg-[#162840] group-hover:bg-[#1a4a8a] dark:group-hover:bg-[#c4880c] transition-colors" />
@@ -821,28 +871,61 @@ export default function Home() {
       <main className="flex flex-col flex-1 min-w-0 bg-[#eef4fb] dark:bg-[#060c14]">
 
         {/* Header */}
-        <header className="h-12 bg-[#f4f8fd]/95 dark:bg-[#091524]/95 border-b border-[#cddcea] dark:border-[#162840] flex items-center px-5 gap-3 shrink-0 backdrop-blur-sm">
-          <h1 className="text-sm font-bold tracking-tight text-[#0a1e38] dark:text-[#c4d8f0]">Financial Report Chat</h1>
+        <header className="min-h-12 md:h-12 bg-[#f4f8fd]/95 dark:bg-[#091524]/95 border-b border-[#cddcea] dark:border-[#162840] flex flex-wrap md:flex-nowrap items-center px-3 md:px-5 py-2 md:py-0 gap-2 md:gap-3 shrink-0 backdrop-blur-sm">
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="md:hidden p-1.5 rounded-lg text-[#7a9ab8] hover:bg-[#e8f0fa] dark:hover:bg-[#0d1c2e] transition-colors shrink-0"
+            aria-label="Open menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <line x1="2" y1="5" x2="16" y2="5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13" x2="16" y2="13"/>
+            </svg>
+          </button>
+          <h1 className="min-w-0 max-w-[calc(100vw-7rem)] text-sm font-bold tracking-tight text-[#0a1e38] dark:text-[#c4d8f0] truncate md:max-w-none">Financial Report Chat</h1>
           {awaitingClarification && (
             <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-400/10 border border-amber-300 dark:border-amber-400/20 rounded-full px-2.5 py-0.5 font-semibold">
               Awaiting clarification
             </span>
           )}
-          <div className="ml-auto flex min-w-0 items-center gap-3">
+          <div className="flex w-full min-w-0 items-center gap-1.5 md:ml-auto md:w-auto md:justify-end md:gap-3">
             <button
               onClick={() => setMemoryOpen(true)}
-              className="rounded-lg border border-[#b8d0e8] dark:border-[#1e3858] bg-white dark:bg-[#0d1c2e] px-3 py-1.5 text-xs font-semibold text-[#1a4a8a] dark:text-[#7eb3e8] shadow-sm transition-all hover:bg-[#e8f0fa] dark:hover:bg-[#12243c] hover:border-[#1a4a8a]/50 dark:hover:border-[#5a8fc8]/40"
+              className="rounded-lg border border-[#b8d0e8] dark:border-[#1e3858] bg-white dark:bg-[#0d1c2e] px-2.5 py-1.5 md:px-3 text-xs font-semibold text-[#1a4a8a] dark:text-[#7eb3e8] shadow-sm transition-all hover:bg-[#e8f0fa] dark:hover:bg-[#12243c] hover:border-[#1a4a8a]/50 dark:hover:border-[#5a8fc8]/40 shrink-0"
             >
-              Memory
+              <span className="md:hidden">memory</span>
+              <span className="hidden md:inline">Memory</span>
             </button>
             <button
               onClick={openMermaidGraph}
-              className="rounded-lg border border-[#b8d0e8] dark:border-[#1e3858] bg-white dark:bg-[#0d1c2e] px-3 py-1.5 text-xs font-semibold text-[#1a4a8a] dark:text-[#7eb3e8] shadow-sm transition-all hover:bg-[#e8f0fa] dark:hover:bg-[#12243c] hover:border-[#1a4a8a]/50 dark:hover:border-[#5a8fc8]/40"
+              className="md:hidden rounded-lg border border-[#b8d0e8] dark:border-[#1e3858] bg-white dark:bg-[#0d1c2e] px-2.5 py-1.5 text-xs font-semibold text-[#1a4a8a] dark:text-[#7eb3e8] shadow-sm transition-all hover:bg-[#e8f0fa] dark:hover:bg-[#12243c] hover:border-[#1a4a8a]/50 dark:hover:border-[#5a8fc8]/40 shrink-0"
+            >
+              graph
+            </button>
+            <button
+              onClick={() => setMobileGraphOpen(true)}
+              className={`ml-auto md:hidden flex min-w-0 max-w-[48vw] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-all shrink ${
+                progressActive
+                  ? "border-emerald-400/50 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
+                  : "border-[#b8d0e8] bg-white text-[#1a4a8a] hover:bg-[#e8f0fa] hover:border-[#1a4a8a]/50 dark:border-[#1e3858] dark:bg-[#0d1c2e] dark:text-[#7eb3e8] dark:hover:bg-[#12243c] dark:hover:border-[#5a8fc8]/40"
+              }`}
+            >
+              {progressActive && (
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+              <span className="shrink-0">progress</span>
+              <span className="min-w-0 truncate text-[10px] font-medium opacity-75">
+                {progressStage}
+              </span>
+            </button>
+            <button
+              onClick={openMermaidGraph}
+              className="hidden md:inline-block rounded-lg border border-[#b8d0e8] dark:border-[#1e3858] bg-white dark:bg-[#0d1c2e] px-3 py-1.5 text-xs font-semibold text-[#1a4a8a] dark:text-[#7eb3e8] shadow-sm transition-all hover:bg-[#e8f0fa] dark:hover:bg-[#12243c] hover:border-[#1a4a8a]/50 dark:hover:border-[#5a8fc8]/40 shrink-0"
             >
               LangGraph Workflow
             </button>
             {threadId && (
-              <span className="hidden select-all truncate font-mono text-[10px] text-[#94b0cc] dark:text-[#3d5878] sm:block">
+              <span className="hidden select-all truncate font-mono text-[10px] text-[#94b0cc] dark:text-[#3d5878] sm:flex sm:items-center sm:gap-1">
+                <span className="font-sans not-italic text-[#7a9ab8] dark:text-[#3d5878]">Thread ID:</span>
                 {threadId}
               </span>
             )}
@@ -850,18 +933,18 @@ export default function Home() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
           {messages.length === 0 && !loading && !error && (
-            <div className="h-full flex flex-col items-center justify-center gap-8">
+            <div className="min-h-full flex flex-col items-center justify-center gap-4 py-3 md:gap-8 md:py-0">
               <div className="text-center">
-                <p className="text-4xl mb-4">⛏️</p>
-                <p className="font-bold text-lg tracking-tight text-[#0a1e38] dark:text-[#dce8f8]">Ask about ASX mining financials</p>
-                <p className="text-sm text-[#7a9ab8] dark:text-[#3d5878] mt-1.5">Revenue · Profit · EBITDA · Capex · Dividends</p>
+                <p className="text-3xl mb-2 md:text-4xl md:mb-4">⛏️</p>
+                <p className="font-bold text-base tracking-tight text-[#0a1e38] dark:text-[#dce8f8] md:text-lg">Ask about ASX mining financials</p>
+                <p className="text-xs text-[#7a9ab8] dark:text-[#3d5878] mt-1 md:text-sm md:mt-1.5">Revenue · Profit · EBITDA · Capex · Dividends</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-4 w-full max-w-3xl">
                 {SUGGESTIONS.map(group => (
-                  <div key={group.category} className="flex flex-col gap-1.5">
-                    <p className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5a7a9a] uppercase tracking-wider mb-0.5 px-1">
+                  <div key={group.category} className="flex flex-col gap-1 md:gap-1.5">
+                    <p className="flex items-center gap-1.5 text-[10px] font-semibold text-[#5a7a9a] uppercase tracking-wider mb-0.5 px-1 md:text-[11px]">
                       <span>{group.icon}</span>
                       {group.category}
                     </p>
@@ -869,7 +952,7 @@ export default function Home() {
                       <button
                         key={s}
                         onClick={() => { setInput(s); inputRef.current?.focus(); }}
-                        className="text-left text-sm text-[#1a4a8a] dark:text-[#7aade8] bg-white dark:bg-[#0d1c2e] hover:bg-[#e8f0fa] dark:hover:bg-[#111e30] border border-[#cddcea] dark:border-[#162840] hover:border-[#b0c8e0] dark:hover:border-[#1e3858] rounded-xl px-3.5 py-2.5 transition-all shadow-sm hover:shadow-md"
+                        className="text-left text-xs text-[#1a4a8a] dark:text-[#7aade8] bg-white dark:bg-[#0d1c2e] hover:bg-[#e8f0fa] dark:hover:bg-[#111e30] border border-[#cddcea] dark:border-[#162840] hover:border-[#b0c8e0] dark:hover:border-[#1e3858] rounded-lg px-3 py-2 transition-all shadow-sm hover:shadow-md md:rounded-xl md:px-3.5 md:py-2.5 md:text-sm"
                       >
                         <span className="flex items-center gap-2">
                           <span className="text-[#c4880c] text-xs font-bold leading-none shrink-0">→</span>
@@ -918,7 +1001,7 @@ export default function Home() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-[#cddcea] dark:border-[#162840] bg-[#f4f8fd] dark:bg-[#091524] p-4">
+        <div className="border-t border-[#cddcea] dark:border-[#162840] bg-[#f4f8fd] dark:bg-[#091524] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4">
           <form onSubmit={handleSubmit} className="flex gap-2">
             <input
               ref={inputRef}
@@ -927,12 +1010,12 @@ export default function Home() {
               onChange={e => setInput(e.target.value)}
               placeholder={placeholder}
               disabled={loading || !threadId || !backendOk}
-              className="flex-1 bg-white dark:bg-[#0d1c2e] border border-[#cddcea] dark:border-[#162840] hover:border-[#b0c8e0] dark:hover:border-[#1e3858] focus:border-[#1a4a8a] dark:focus:border-[#4a7fc8] focus:ring-1 focus:ring-[#1a4a8a]/15 dark:focus:ring-[#4a7fc8]/15 rounded-xl px-4 py-2.5 text-sm text-[#0a1e38] dark:text-[#c4d8f0] placeholder-[#94b0cc] dark:placeholder-[#3d5878] focus:outline-none disabled:opacity-40 transition-all shadow-sm"
+              className="min-w-0 flex-1 bg-white dark:bg-[#0d1c2e] border border-[#cddcea] dark:border-[#162840] hover:border-[#b0c8e0] dark:hover:border-[#1e3858] focus:border-[#1a4a8a] dark:focus:border-[#4a7fc8] focus:ring-1 focus:ring-[#1a4a8a]/15 dark:focus:ring-[#4a7fc8]/15 rounded-xl px-3 py-2.5 text-sm text-[#0a1e38] dark:text-[#c4d8f0] placeholder-[#94b0cc] dark:placeholder-[#3d5878] focus:outline-none disabled:opacity-40 transition-all shadow-sm md:px-4"
             />
             <button
               type="submit"
               disabled={loading || !input.trim() || !threadId || !backendOk}
-              className="bg-[#1a4a8a] hover:bg-[#20579e] active:bg-[#143870] disabled:opacity-40 text-white rounded-xl px-5 py-2.5 text-sm font-semibold transition-all shrink-0 shadow-sm shadow-[#1a4a8a]/25 disabled:shadow-none"
+              className="bg-[#1a4a8a] hover:bg-[#20579e] active:bg-[#143870] disabled:opacity-40 text-white rounded-xl px-4 py-2.5 text-sm font-semibold transition-all shrink-0 shadow-sm shadow-[#1a4a8a]/25 disabled:shadow-none md:px-5"
             >
               Send
             </button>
@@ -947,7 +1030,7 @@ export default function Home() {
       {graphPanelVisible && (
         <div
           onMouseDown={(e) => startDrag("right", e)}
-          className="w-1 shrink-0 cursor-col-resize group relative hover:bg-[#1a4a8a]/10 dark:hover:bg-[#c4880c]/10 transition-colors"
+          className="hidden md:block w-1 shrink-0 cursor-col-resize group relative hover:bg-[#1a4a8a]/10 dark:hover:bg-[#c4880c]/10 transition-colors"
           title="Drag to resize"
         >
           <div className="absolute inset-y-0 right-0 w-px bg-[#cddcea] dark:bg-[#162840] group-hover:bg-[#1a4a8a] dark:group-hover:bg-[#c4880c] transition-colors" />
@@ -955,12 +1038,26 @@ export default function Home() {
       )}
 
       {/* ── Graph Panel ─────────────────────────────────────── */}
-      <GraphPanel
-        events={graphEvents}
-        visible={graphPanelVisible}
-        width={rightWidth}
-        onToggle={() => setGraphPanelVisible(v => !v)}
-      />
+      <div className="hidden md:contents">
+        <GraphPanel
+          events={graphEvents}
+          visible={graphPanelVisible}
+          width={rightWidth}
+          onToggle={() => setGraphPanelVisible(v => !v)}
+        />
+      </div>
+
+      {/* Mobile Graph Progress overlay */}
+      {mobileGraphOpen && (
+        <div className="fixed inset-0 z-50 md:hidden overflow-hidden">
+          <GraphPanel
+            events={graphEvents}
+            visible={true}
+            width={9999}
+            onToggle={() => setMobileGraphOpen(false)}
+          />
+        </div>
+      )}
 
       <MemoryModal open={memoryOpen} onClose={() => setMemoryOpen(false)} />
 
