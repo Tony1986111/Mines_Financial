@@ -249,14 +249,24 @@ export default function GraphPanel({ events, visible, width, onToggle }: GraphPa
             </p>
           ) : (
             <div className="space-y-0.5 px-1">
-              {events.map((e, i) => (
-                <NodeRow
-                  key={`${e.node}-${i}`}
-                  node={e.node}
-                  status={e.status}
-                  state={e.state}
-                />
-              ))}
+              {events.map((e, i) =>
+                e.node === "__turn__" ? (
+                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 my-1">
+                    <div className="flex-1 h-px bg-[#cddcea] dark:bg-[#162840]" />
+                    <span className="text-[9px] text-[#94b0cc] dark:text-[#3d5878] font-mono truncate max-w-[130px]" title={String(e.state?.query ?? "")}>
+                      {String(e.state?.query ?? "")}
+                    </span>
+                    <div className="flex-1 h-px bg-[#cddcea] dark:bg-[#162840]" />
+                  </div>
+                ) : (
+                  <NodeRow
+                    key={`${e.node}-${i}`}
+                    node={e.node}
+                    status={e.status}
+                    state={e.state}
+                  />
+                )
+              )}
             </div>
           )}
         </div>

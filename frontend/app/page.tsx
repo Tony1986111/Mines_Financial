@@ -547,11 +547,15 @@ export default function Home() {
     setLoading(true);
     setStreamingThreadId(submittedThreadId);
     setStreamingLabel(userMessage.slice(0, 60));
-    setGraphEvents([]);
     setTypewriterIdx(null);
 
+    // Append a turn divider to the existing events instead of clearing them
+    const turnDivider: GraphNodeEvent = { node: "__turn__", status: "done", state: { query: userMessage.slice(0, 60) } };
+    const baseEvents: GraphNodeEvent[] = graphEvents.length > 0 ? [...graphEvents, turnDivider] : [];
+    setGraphEvents(baseEvents);
+
     // Init the stream buffer for this conversation
-    streamBufferRef.current = { threadId: submittedThreadId, messages: next, graphEvents: [] };
+    streamBufferRef.current = { threadId: submittedThreadId, messages: next, graphEvents: baseEvents };
 
     // Route setMessages/setGraphEvents through the buffer so navigating away
     // doesn't corrupt the displayed historical thread view.

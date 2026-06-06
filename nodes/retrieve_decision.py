@@ -20,6 +20,11 @@ _SYSTEM_PROMPT = """You are a routing agent for an ASX mining financial report c
     Set to false for: greetings, general knowledge about mining concepts, questions about
     how you work, thank-yous, or anything not tied to specific company financial data.
 
+    needs_news: true if the question asks about recent events, latest news, current market
+    conditions, analyst outlooks, or anything requiring up-to-date web information beyond
+    what annual reports contain. Examples: "latest news about FMG", "current share price",
+    "recent project updates", "what is happening with RIO right now".
+
     needs_clarification: true only when the question is so vague that retrieval cannot
     meaningfully proceed — e.g. "tell me about this company" with no company named, or
     "what were the numbers last year" with no company or metric. For questions that are
@@ -48,9 +53,10 @@ _SYSTEM_PROMPT = """You are a routing agent for an ASX mining financial report c
 class _RoutingDecision(BaseModel):
     is_out_of_scope:        bool = Field(default=False, description="True if the question is completely unrelated to ASX mining companies or their financial data.")
     needs_retrieval:        bool = Field(description="True if financial data from reports is needed.")
+    needs_news:             bool = Field(default=False, description="True if recent news or web search is needed.")
     needs_clarification:    bool = Field(description="True if the question is too vague to proceed.")
     clarification_question: str  = Field(default="", description="Question to ask the user if clarification is needed.")
-    direct_answer:          str  = Field(default="", description="Direct answer when no retrieval is needed.")
+    direct_answer:          str  = Field(default="", description="Direct answer when no retrieval or news is needed.")
 
 
 _structured_llm = llm.with_structured_output(_RoutingDecision, method="function_calling")
@@ -69,6 +75,7 @@ def retrieve_decision_node(state: MainState) -> dict:
         out: dict = {
             "is_out_of_scope":     result.is_out_of_scope,
             "needs_retrieval":     result.needs_retrieval,
+            "needs_news":          result.needs_news,
             "needs_clarification": result.needs_clarification,
         }
         if result.is_out_of_scope:

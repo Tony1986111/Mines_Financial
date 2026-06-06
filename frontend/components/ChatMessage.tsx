@@ -357,7 +357,7 @@ export default function ChatMessage({
           {isUser ? "U" : "AI"}
         </div>
 
-        <div className={`min-w-0 max-w-[calc(100%-2.375rem)] overflow-hidden rounded-2xl px-3.5 py-3 text-sm leading-relaxed [overflow-wrap:anywhere] md:max-w-[75%] md:px-4 ${
+        <div className={`min-w-0 max-w-[calc(100%-2.375rem)] rounded-2xl px-3.5 py-3 text-sm leading-relaxed [overflow-wrap:anywhere] md:max-w-[75%] md:px-4 ${
           isUser
             ? "bg-gradient-to-b from-[#1e5cba] to-[#1a4a8a] text-white rounded-tr-sm shadow-sm shadow-[#1a4a8a]/20"
             : "bg-white dark:bg-[#0d1c2e] text-[#0a1e38] dark:text-[#c4d8f0] border border-[#cddcea] dark:border-[#162840] rounded-tl-sm shadow-sm dark:shadow-none"

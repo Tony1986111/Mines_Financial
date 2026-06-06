@@ -17,6 +17,7 @@ def _merge_company_status(existing: dict, update: dict) -> dict:
 class MainState(TypedDict):
     messages:               Annotated[list[AnyMessage], add_messages]
     needs_retrieval:        bool
+    needs_news:             bool
     needs_clarification:    bool
     selected_agents:        list[str]
     clarification_question: str

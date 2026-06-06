@@ -31,11 +31,11 @@ def route_after_memory(state: MainState) -> str:
 def route_retrieve_decision(state: MainState) -> str:
     if state.get("is_out_of_scope", False):
         return "answer"
-    if not state.get("needs_retrieval", True):
-        return "guardrails"  # direct answers still validated before reaching answer_node
-    if state.get("needs_clarification", False):
-        return "clarify"
-    return "dynamic_tool_selector"
+    if state.get("needs_retrieval") or state.get("needs_news"):
+        if state.get("needs_clarification", False):
+            return "clarify"
+        return "dynamic_tool_selector"
+    return "guardrails"
 
 
 def _make_sends(state: MainState) -> list[Send]:
