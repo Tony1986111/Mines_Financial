@@ -5,8 +5,8 @@ import AppSidebar from "@/components/AppSidebar";
 import ChatComposer from "@/components/ChatComposer";
 import ChatEmptyState from "@/components/ChatEmptyState";
 import ChatHeader from "@/components/ChatHeader";
-import ChatMessage, { type Message } from "@/components/ChatMessage";
-import GraphPanel, { type GraphNodeEvent } from "@/components/GraphPanel";
+import ChatMessage from "@/components/ChatMessage";
+import GraphPanel from "@/components/GraphPanel";
 import MermaidGraphModal from "@/components/MermaidGraphModal";
 import MemoryModal from "@/components/MemoryModal";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -16,6 +16,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useThreads, type StreamBuffer } from "@/hooks/useThreads";
 import { fetchGraphMermaid } from "@/lib/api";
 import { MOBILE_PROGRESS_LABELS } from "@/lib/progressEvents";
+import type { Message } from "@/types/chat";
+import type { GraphNodeEvent } from "@/types/graph";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
