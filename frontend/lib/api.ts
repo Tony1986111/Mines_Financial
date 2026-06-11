@@ -54,6 +54,7 @@ export interface DoneEvent {
   chart_data?: ChartSpec[];
   sources?: SourceRef[];
   confidence?: string;
+  unsupported_claims?: Array<{ claim: string; basis: string }>;
 }
 
 export interface ErrorEvent {

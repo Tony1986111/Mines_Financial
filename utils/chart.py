@@ -3,15 +3,17 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
+from state import ChartData, ChartDataset, RetrievedDoc
+
 # ─── Metric classification ────────────────────────────────────────────────────
 
 # Maps a display name to the keywords we look for in the surrounding text.
 # Keep keywords lowercase; matching is done on lowercased content.
 _METRICS: dict[str, list[str]] = {
-    "Revenue":             ["revenue", "sales", "turnover"],
-    "Net Profit":          ["net profit", "profit after tax", "npat", "net income"],
-    "EBITDA":              ["ebitda", "earnings before interest"],
-    "Capex":               ["capital expenditure", "capex"],
+    "Revenue": ["revenue", "sales", "turnover"],
+    "Net Profit": ["net profit", "profit after tax", "npat", "net income"],
+    "EBITDA": ["ebitda", "earnings before interest"],
+    "Capex": ["capital expenditure", "capex"],
     "Operating Cash Flow": ["operating cash flow", "cash from operations"],
 }
 
@@ -29,9 +31,9 @@ _VALUE_RE = re.compile(
 
 # Normalise currency prefixes to a canonical display symbol.
 _CURRENCY_DISPLAY: dict[str, str] = {
-    "A$":  "A$",
+    "A$": "A$",
     "AUD": "A$",
-    "$":   "A$",   # bare $ in ASX reports defaults to AUD
+    "$": "A$",   # bare $ in ASX reports defaults to AUD
     "US$": "US$",
     "USD": "US$",
 }
@@ -39,11 +41,11 @@ _CURRENCY_DISPLAY: dict[str, str] = {
 # Normalise every matched value to A$M so all charts share the same y-axis unit.
 _TO_MILLIONS: dict[str, float] = {
     "billion": 1_000.0,
-    "bn":      1_000.0,
-    "b":       1_000.0,
-    "million":     1.0,
-    "mn":          1.0,
-    "m":           1.0,
+    "bn": 1_000.0,
+    "b": 1_000.0,
+    "million": 1.0,
+    "mn": 1.0,
+    "m": 1.0,
 }
 
 # How many characters before the dollar figure to scan for a metric keyword.
@@ -81,18 +83,18 @@ def _classify_metric(window: str) -> str | None:
     return None
 
 
-def _extract_from_doc(doc: dict) -> list[tuple[str, str, str, float, str]]:
+def _extract_from_doc(doc: RetrievedDoc) -> list[tuple[str, str, str, float, str]]:
     """Return (company, fy, metric, value_millions, currency) tuples found in one doc."""
     content = doc.get("content", "")
     company = doc.get("company", "")
-    fy      = doc.get("fy", "")
+    fy = doc.get("fy", "")
 
     if not (content and company and fy):
         return []
 
     hits: list[tuple[str, str, str, float, str]] = []
     for match in _VALUE_RE.finditer(content):
-        start  = max(0, match.start() - _CONTEXT_WINDOW)
+        start = max(0, match.start() - _CONTEXT_WINDOW)
         window = content[start : match.end()]
 
         metric = _classify_metric(window)
@@ -100,8 +102,8 @@ def _extract_from_doc(doc: dict) -> list[tuple[str, str, str, float, str]]:
             continue
 
         currency = _CURRENCY_DISPLAY.get(match.group(1), match.group(1))
-        raw      = float(match.group(2).replace(",", ""))
-        scale    = match.group(3)
+        raw = float(match.group(2).replace(",", ""))
+        scale = match.group(3)
         hits.append((company, fy, metric, round(_to_millions(raw, scale), 1), currency))
 
     return hits
@@ -129,13 +131,13 @@ def _extract_from_text(text: str) -> list[tuple[str, str, str, float, str]]:
             for m in pattern.finditer(before):
                 if m.start() > best_pos:
                     best_pos = m.start()
-                    company  = ticker
+                    company = ticker
         if company is None:
             continue
 
         currency = _CURRENCY_DISPLAY.get(match.group(1), match.group(1))
-        raw      = float(match.group(2).replace(",", ""))
-        scale    = match.group(3)
+        raw = float(match.group(2).replace(",", ""))
+        scale = match.group(3)
         hits.append((company, fy, metric, round(_to_millions(raw, scale), 1), currency))
 
     return hits
@@ -143,7 +145,7 @@ def _extract_from_text(text: str) -> list[tuple[str, str, str, float, str]]:
 
 # ─── Public API ───────────────────────────────────────────────────────────────
 
-def extract_chart_data(docs: list[dict], text: str = "") -> list[dict]:
+def extract_chart_data(docs: list[RetrievedDoc], text: str = "") -> list[ChartData]:
     """Extract Chart.js-compatible chart specs from graded financial documents.
 
     Called by answer_node with the list of graded docs from retrieval_result.
@@ -199,16 +201,16 @@ def extract_chart_data(docs: list[dict], text: str = "") -> list[dict]:
     for (company, fy, metric), (value, currency) in first_hit.items():
         by_metric_currency[(metric, currency)][company][fy] = value
 
-    charts: list[dict] = []
+    charts: list[ChartData] = []
     for (metric, currency), company_map in sorted(by_metric_currency.items()):
         total_points = sum(len(fy_map) for fy_map in company_map.values())
         if total_points < 2:
             continue
 
         companies = sorted(company_map.keys())
-        all_fys   = sorted({fy for fy_map in company_map.values() for fy in fy_map})
+        all_fys = sorted({fy for fy_map in company_map.values() for fy in fy_map})
 
-        datasets: list[dict] = []
+        datasets: list[ChartDataset] = []
         for fy in all_fys:
             row = [company_map[c].get(fy) for c in companies]
             if any(v is not None for v in row):
@@ -216,9 +218,9 @@ def extract_chart_data(docs: list[dict], text: str = "") -> list[dict]:
 
         if datasets:
             charts.append({
-                "type":     "bar",
-                "title":    f"{metric} ({currency}M)",
-                "labels":   companies,
+                "type": "bar",
+                "title": f"{metric} ({currency}M)",
+                "labels": companies,
                 "datasets": datasets,
             })
 

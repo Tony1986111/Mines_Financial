@@ -11,13 +11,17 @@ def _mock_decision(
     needs_clarification=False,
     clarification_question="",
     direct_answer="",
+    needs_news=False,
+    is_out_of_scope=False,
 ):
     # Populate the same attributes the production structured response exposes.
     m = MagicMock()
-    m.needs_retrieval        = needs_retrieval
-    m.needs_clarification    = needs_clarification
+    m.needs_retrieval = needs_retrieval
+    m.needs_clarification = needs_clarification
     m.clarification_question = clarification_question
-    m.direct_answer          = direct_answer
+    m.direct_answer = direct_answer
+    m.needs_news = needs_news
+    m.is_out_of_scope = is_out_of_scope
     return m
 
 
@@ -154,4 +158,13 @@ def test_llm_exception_returns_fail_safe_retrieval():
         result = retrieve_decision_node({"query": "BHP revenue?"})
 
     # Assert the fail-safe decision asks the graph to retrieve context.
-    assert result == {"needs_retrieval": True, "needs_clarification": False}
+    assert result == {"is_out_of_scope": False, "needs_retrieval": True, "needs_clarification": False}
+
+
+# Verifies a news-only decision is not silently flipped to retrieval.
+def test_news_only_decision_not_forced_to_retrieval():
+    with patch(_PATCH) as mock_llm:
+        mock_llm.invoke.return_value = _mock_decision(needs_retrieval=False, needs_news=True)
+        result = retrieve_decision_node({"query": "latest FMG news"})
+    assert result["needs_retrieval"] is False
+    assert result["needs_news"] is True

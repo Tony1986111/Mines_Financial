@@ -19,8 +19,10 @@ from langgraph.checkpoint.memory import MemorySaver as _MemorySaver
 os.environ.setdefault("DATABASE_URL", "postgresql://test/testdb")
 
 # LangGraph validates checkpointer type, so use MemorySaver for compile().
-_p_conn = patch("psycopg.Connection.connect",                       return_value=MagicMock())
-_p_pg   = patch("langgraph.checkpoint.postgres.PostgresSaver",      return_value=_MemorySaver())
+_p_conn = patch("psycopg.Connection.connect", return_value=MagicMock())
+_mock_saver = _MemorySaver()
+_mock_saver.setup = lambda: None
+_p_pg = patch("langgraph.checkpoint.postgres.PostgresSaver", return_value=_mock_saver)
 _p_conn.start()
 _p_pg.start()
 
@@ -71,13 +73,15 @@ def test_needs_clarification_routes_to_clarify():
     assert route_retrieve_decision(state) == "clarify"
 
 
-# Verifies clear retrieval requests route to tool selection.
-def test_retrieval_no_clarification_routes_to_dynamic_tool_selector():
+# Verifies clear retrieval requests fan out directly to agent sends.
+def test_retrieval_no_clarification_returns_agent_sends():
     # Build state where retrieval can proceed without more user input.
     state = {"needs_retrieval": True, "needs_clarification": False}
 
-    # Assert the graph moves to choosing retrieval/news tools.
-    assert route_retrieve_decision(state) == "dynamic_tool_selector"
+    # Assert the routing returns a list of Send objects targeting retrieval_agent.
+    result = route_retrieve_decision(state)
+    assert isinstance(result, list)
+    assert result[0].node == "retrieval_agent"
 
 
 # Verifies clarification has priority when both routing flags are true.
@@ -134,82 +138,52 @@ def test_missing_guardrails_flag_defaults_to_answer():
 
 # _make_sends
 
-# Verifies retrieval-only tool selection creates one retrieval send.
+# Verifies retrieval-only path creates one retrieval send.
 def test_make_sends_retrieval_only():
-    # Build sends for a state that selected only retrieval.
-    sends = _make_sends({"selected_agents": ["retrieval"], "query": "BHP revenue"})
-
-    # Assert exactly one send targets the retrieval agent.
+    sends = _make_sends({"needs_retrieval": True, "needs_news": False, "query": "BHP revenue"})
     assert len(sends) == 1
     assert sends[0].node == "retrieval_agent"
 
 
-# Verifies news-only tool selection creates one news send.
+# Verifies news-only path creates one news send.
 def test_make_sends_news_only():
-    # Build sends for a state that selected only news.
-    sends = _make_sends({"selected_agents": ["news"], "query": "BHP news"})
-
-    # Assert exactly one send targets the news agent.
+    sends = _make_sends({"needs_retrieval": False, "needs_news": True, "query": "BHP news"})
     assert len(sends) == 1
     assert sends[0].node == "news_agent"
 
 
-# Verifies selecting both tools fans out to both agents.
+# Verifies both flags fan out to both agents.
 def test_make_sends_both_agents():
-    # Build sends for a state that selected retrieval and news.
-    sends = _make_sends({"selected_agents": ["retrieval", "news"], "query": "BHP"})
-
-    # Collect target node names to check fan-out without depending on order.
+    sends = _make_sends({"needs_retrieval": True, "needs_news": True, "query": "BHP"})
     nodes = {s.node for s in sends}
-
-    # Assert both expected agent nodes are scheduled.
     assert nodes == {"retrieval_agent", "news_agent"}
 
 
-# Verifies an empty selected_agents list defaults to retrieval.
-def test_make_sends_empty_list_defaults_to_retrieval():
-    """An empty list is falsy and falls back to ['retrieval']."""
-    # Build sends with an explicit but empty agent list.
-    sends = _make_sends({"selected_agents": [], "query": "BHP"})
-
-    # Assert the fallback schedules retrieval.
-    assert len(sends) == 1
-    assert sends[0].node == "retrieval_agent"
-
-
-# Verifies missing selected_agents defaults to retrieval.
-def test_make_sends_missing_agents_key_defaults_to_retrieval():
-    # Build sends without the selected_agents key.
-    sends = _make_sends({"query": "BHP"})
-
-    # Assert the fallback schedules retrieval.
-    assert len(sends) == 1
-    assert sends[0].node == "retrieval_agent"
-
-
-# Verifies retrieval sends receive only the query payload.
+# Verifies retrieval sends receive only the query payload, not the full state.
 def test_make_sends_retrieval_input_contains_query():
-    """retrieval_agent receives a trimmed input dict, not the full state."""
-    # Build state with extra data that retrieval should not receive.
-    state = {"selected_agents": ["retrieval"], "query": "BHP FY2024", "extra_key": "noise"}
-
-    # Create sends and inspect the retrieval argument.
+    state = {"needs_retrieval": True, "needs_news": False, "query": "BHP FY2024", "extra_key": "noise"}
     sends = _make_sends(state)
     arg = sends[0].arg
-
-    # Assert the query is preserved and unrelated state is omitted.
     assert arg["query"] == "BHP FY2024"
     assert "extra_key" not in arg
 
 
-# Verifies news sends receive the original full state object.
+# Verifies news sends receive the full state object.
 def test_make_sends_news_agent_receives_full_state():
-    """news_agent gets the whole state so it can access any field it needs."""
-    # Build state with news-specific context that should remain available.
-    state = {"selected_agents": ["news"], "query": "BHP news", "news_context": "existing"}
-
-    # Create sends for the news agent.
+    state = {"needs_retrieval": False, "needs_news": True, "query": "BHP news", "news_context": "existing"}
     sends = _make_sends(state)
-
-    # Assert the news send keeps the exact state object.
     assert sends[0].arg is state
+
+
+# Verifies a news-only query routes to list[Send] targeting news_agent.
+def test_news_only_query_returns_agent_sends():
+    state = {"needs_news": True, "needs_clarification": False}
+    result = route_retrieve_decision(state)
+    assert isinstance(result, list)
+    assert result[0].node == "news_agent"
+
+
+# Verifies a news query with clarification needed routes to clarify.
+def test_news_query_with_clarification_routes_to_clarify():
+    state = {"needs_news": True, "needs_clarification": True}
+    assert route_retrieve_decision(state) == "clarify"

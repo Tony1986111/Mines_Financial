@@ -63,8 +63,7 @@ function toCards(v: ProgressCardData | ProgressCardData[] | null): ProgressCardD
  * Fix: pre-announce the next long-running stage from the preceding node's
  * done event, so the "Searching…" card is in the DOM for the full duration
  * of the actual retrieval/agent work:
- *   - retrieve_decision done → add retrieval_agent running card
- *   - dynamic_tool_selector done → add news_agent / calculator_agent running cards
+ *   - retrieve_decision done → add running cards for whichever agents will run
  */
 function nodeEventToCard(
   node: string,
@@ -75,11 +74,10 @@ function nodeEventToCard(
 
   // ── Running state ────────────────────────────────────────────────────────────
   if (status === "running") {
-    if (node === "dynamic_tool_selector") return null; // handled via done pre-announcement
     const texts: Record<string, string> = {
       retrieve_decision: "Analysing question type…",
-      retrieval_agent:   "Searching financial reports…",
-      news_agent:        "Searching latest news…",
+      // retrieval_agent and news_agent are pre-announced by retrieve_decision done;
+      // returning null here prevents node_start from moving that card to the end.
       calculator_agent:  "Calculating financial metrics…",
       answer:            "Generating answer…",
     };
@@ -90,26 +88,18 @@ function nodeEventToCard(
   // ── Done state ───────────────────────────────────────────────────────────────
 
   if (node === "retrieve_decision") {
-    if (state?.needs_retrieval === false) {
+    // Direct answer: no retrieval AND no news needed
+    if (state?.needs_retrieval === false && !state?.needs_news) {
       return { id: node, status: "done", variant: "direct", text: "Answering directly from memory, no report lookup needed." };
     }
-    // Pre-announce retrieval: this card is visible for the entire duration of
-    // the retrieval subgraph (several seconds) before node_done("retrieval_agent")
-    // replaces it with the result card.
-    return { id: "retrieval_agent", status: "running", variant: "status", text: "Searching financial reports…" };
-  }
-
-  if (node === "dynamic_tool_selector") {
-    // Pre-announce whichever agents were freshly selected this turn.
-    // Uses selected_agents (set fresh each turn) to avoid the stale
-    // needs_calculation flag that persists across checkpoints.
-    const agents = (state?.selected_agents as string[] | undefined) ?? [];
+    // Pre-announce whichever agents will run — cards stay visible for the full
+    // agent duration before node_done replaces them with result cards.
     const cards: ProgressCardData[] = [];
-    if (agents.includes("news_agent")) {
-      cards.push({ id: "news_agent", status: "running", variant: "status", text: "Searching latest news…" });
+    if (state?.needs_retrieval !== false) {
+      cards.push({ id: "retrieval_agent", status: "running", variant: "status", text: "Searching financial reports…" });
     }
-    if (agents.includes("calculator_agent")) {
-      cards.push({ id: "calculator_agent", status: "running", variant: "status", text: "Calculating financial metrics…" });
+    if (state?.needs_news) {
+      cards.push({ id: "news_agent", status: "running", variant: "status", text: "Searching latest news…" });
     }
     return cards.length > 0 ? cards : null;
   }
@@ -171,6 +161,75 @@ function nodeEventToCard(
       id: node, status: "done", variant: "fallback",
       text: "⚠️ No data can be found from the available annual reports.",
     };
+  }
+
+  // ── Inner retrieval subgraph nodes ───────────────────────────────────────────
+  // Running cards never render (back-to-back with done); return null for running.
+  // Card IDs are suffixed with _call_idx / _pass (injected by backend) so each
+  // retry pass stacks its own cards instead of overwriting the previous pass's.
+
+  if (node === "query_rewrite") {
+    if (status === "running") return null;
+    const callIdx = (state?._call_idx as number | undefined) ?? 0;
+    const isRetry = callIdx > 0;
+    if (isRetry) {
+      const companyQueries = (state?.company_queries as { company: string; query: string }[] | undefined) ?? [];
+      const bodyLines = companyQueries.map(cq => `${cq.company}: ${cq.query}`);
+      return {
+        id: `query_rewrite_${callIdx}`, status: "done", variant: "result", icon: "🔄",
+        title: "Retrying with targeted queries",
+        bodyLines: bodyLines.length > 0 ? bodyLines : undefined,
+      };
+    }
+    const rewritten = state?.rewritten_query as string | undefined;
+    return {
+      id: `query_rewrite_${callIdx}`, status: "done", variant: "result", icon: "🔍",
+      title: "Query rewritten",
+      bodyLines: rewritten ? [rewritten] : undefined,
+    };
+  }
+
+  if (node === "retrieve_company") {
+    return null;
+  }
+
+  if (node === "grade_docs") {
+    if (status === "running") return { id: "grade_docs", status: "running", variant: "status", text: "Grading retrieved documents…" };
+    const callIdx = (state?._call_idx as number | undefined) ?? 0;
+    const retrieved = (state?.retrieved_count as number | undefined) ?? 0;
+    const graded = (state?.graded_docs as unknown[] | undefined) ?? [];
+    if (retrieved === 0) return null;
+    const docGrade = state?.grade as string | undefined;
+    return {
+      id: `grade_docs_${callIdx}`, status: "done", variant: "result",
+      icon: docGrade === "pass" ? "✅" : "⚠️",
+      title: `Retrieved ${retrieved} chunk${retrieved !== 1 ? "s" : ""} — ${graded.length} passed relevance check`,
+    };
+  }
+
+  if (node === "synthesize") {
+    if (status === "running") return null;
+    const callIdx = (state?._call_idx as number | undefined) ?? 0;
+    return { id: `synthesize_${callIdx}`, status: "done", variant: "result", icon: "✍️", title: "Answer drafted" };
+  }
+
+  if (node === "grade_answer") {
+    if (status === "running") return null;
+    const callIdx = (state?._call_idx as number | undefined) ?? 0;
+    const grounded = state?.grounded as string | undefined;
+    const hints = (state?.unsupported_hints as string[] | undefined) ?? [];
+    // hints is populated when n >= 2 (Option A retry threshold)
+    if (hints.length >= 2) {
+      const detail = ": " + hints.slice(0, 2).join(", ");
+      return {
+        id: `grade_answer_${callIdx}`, status: "done", variant: "fallback",
+        text: `⚠️ Unverified claims — retrying${detail}`,
+      };
+    }
+    if (grounded === "partial") {
+      return { id: `grade_answer_${callIdx}`, status: "done", variant: "result", icon: "🟡", title: "Answer partially verified" };
+    }
+    return { id: `grade_answer_${callIdx}`, status: "done", variant: "result", icon: "✅", title: "Answer verified" };
   }
 
   return null;
@@ -247,7 +306,6 @@ const MOBILE_PROGRESS_LABELS: Record<string, string> = {
   compress_context: "Compressing",
   memory: "Memory",
   retrieve_decision: "Routing",
-  dynamic_tool_selector: "Selecting tools",
   clarify: "Clarifying",
   retrieval_agent: "Searching reports",
   news_agent: "Searching news",
@@ -256,6 +314,12 @@ const MOBILE_PROGRESS_LABELS: Record<string, string> = {
   guardrails: "Checking",
   fallback: "Fallback",
   answer: "Answering",
+  // inner retrieval subgraph nodes
+  query_rewrite: "Rewriting query",
+  retrieve_company: "Retrieving docs",
+  grade_docs: "Grade Docs",
+  synthesize: "Synthesising",
+  grade_answer: "Verifying answer",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -578,6 +642,10 @@ export default function Home() {
 
     // Track progress cards locally — avoids stale closure issues with useState
     let currentCards: ProgressCardData[] = [];
+    // Buffer for retrieval subgraph cards that must be flushed in a specific order.
+    // synthesize and grade_answer arrive before grade_docs (which is synthetic),
+    // so we hold them and flush [grade_docs, synthesize, grade_answer] together.
+    const pendingSubgraphDones: Array<{ node: string; state?: Record<string, unknown> }> = [];
     let progressAdded = false;
     const progressIdx = next.length; // index where the progress message will sit
 
@@ -604,6 +672,7 @@ export default function Home() {
       let finalChartData: ChartSpec[] = [];
       let finalSources: SourceRef[] = [];
       let finalConfidence = "";
+      let finalUnsupportedClaims: Array<{ claim: string; basis: string }> = [];
       let interrupted = false;
       let clarificationQuestion: string | null = null;
       let streamError: string | null = null;
@@ -614,10 +683,14 @@ export default function Home() {
         awaitingClarification,
         (event) => {
           if (event.type === "node_start") {
-            bufGraphEvents(prev => [
-              ...prev.filter(e => !(e.node === event.node && e.status === "running")),
-              { node: event.node, status: "running" },
-            ]);
+            // retrieval_agent is pre-announced in retrieve_decision's node_done handler
+            // (when needs_retrieval is true) so its graphEvent is already in place.
+            if (event.node !== "retrieval_agent") {
+              bufGraphEvents(prev => [
+                ...prev.filter(e => !(e.node === event.node && e.status === "running")),
+                { node: event.node, status: "running" },
+              ]);
+            }
             const newCards = toCards(nodeEventToCard(event.node, "running"));
             if (newCards.length > 0) {
               currentCards = [
@@ -628,20 +701,78 @@ export default function Home() {
             }
 
           } else if (event.type === "node_done") {
-            bufGraphEvents(prev => [
-              ...prev.filter(e => !(e.node === event.node && e.status === "running")),
-              { node: event.node, status: "done", state: event.state },
-            ]);
-            const newCards = toCards(nodeEventToCard(event.node, "done", event.state));
-            // Remove: running card for this node + any running/done card whose id a new card will take over
-            const replaceIds = new Set([event.node, ...newCards.map(c => c.id)]);
-            currentCards = currentCards.filter(c => {
-              if (c.status === "running" && replaceIds.has(c.id)) return false;
-              if (newCards.some(nc => nc.id === c.id)) return false;
-              return true;
+            bufGraphEvents(prev => {
+              const doneEntry = { node: event.node, status: "done" as const, state: event.state };
+              let next: GraphNodeEvent[];
+              if (event.node === "retrieval_agent") {
+                // Keep the running "starts" entry; append the done entry for "ends" label.
+                next = [...prev, doneEntry];
+              } else {
+                // Replace the running entry in-place so position is preserved even when
+                // node_done arrives late (e.g. grade_docs whose done is deferred).
+                const runningIdx = prev.findLastIndex(e => e.node === event.node && e.status === "running");
+                if (runningIdx >= 0) {
+                  next = [...prev.slice(0, runningIdx), doneEntry, ...prev.slice(runningIdx + 1)];
+                } else {
+                  // No running entry: check for existing done entries (state backfill).
+                  // Update all matching done entries in-place so the backfilled state
+                  // appears at the original position (e.g. query_rewrite, retrieve_company).
+                  const hasDone = prev.some(e => e.node === event.node && e.status === "done");
+                  if (hasDone) {
+                    next = prev.map(e => (e.node === event.node && e.status === "done") ? doneEntry : e);
+                  } else {
+                    next = [...prev, doneEntry];
+                  }
+                }
+              }
+              if (event.node === "retrieve_decision" && event.state?.needs_retrieval) {
+                next.push({ node: "retrieval_agent", status: "running" });
+              }
+              return next;
             });
-            currentCards = [...currentCards, ...newCards];
-            flushProgressMessage();
+            // synthesize, grade_answer, and grade_docs arrive out of order relative
+            // to each other: synthesize/grade_answer are inner nodes (arrive first),
+            // grade_docs is synthetic (arrives after retrieval_agent done). Buffer all
+            // three and flush when grade_docs arrives: grade_docs first, then the rest.
+            if (event.node === "synthesize" || event.node === "grade_answer" || event.node === "grade_docs") {
+              pendingSubgraphDones.push({ node: event.node, state: event.state });
+              if (event.node === "grade_docs") {
+                const ordered = [
+                  ...pendingSubgraphDones.filter(e => e.node === "grade_docs"),
+                  ...pendingSubgraphDones.filter(e => e.node !== "grade_docs"),
+                ];
+                pendingSubgraphDones.length = 0;
+                for (const { node: pNode, state: pState } of ordered) {
+                  const pCards = toCards(nodeEventToCard(pNode, "done", pState));
+                  const rIds = new Set([pNode, ...pCards.map(c => c.id)]);
+                  currentCards = currentCards.filter(c => !(c.status === "running" && rIds.has(c.id)));
+                  currentCards = [...currentCards, ...pCards];
+                }
+                flushProgressMessage();
+              }
+            } else {
+              const newCards = toCards(nodeEventToCard(event.node, "done", event.state));
+              const replaceIds = new Set([event.node, ...newCards.map(c => c.id)]);
+              const runningIdx = currentCards.findIndex(
+                c => c.status === "running" && replaceIds.has(c.id)
+              );
+              const filtered = currentCards.filter(c => {
+                if (c.status === "running" && replaceIds.has(c.id)) return false;
+                if (newCards.some(nc => nc.id === c.id)) return false;
+                return true;
+              });
+              if (runningIdx >= 0 && newCards.length > 0) {
+                const insertAt = Math.min(runningIdx, filtered.length);
+                currentCards = [
+                  ...filtered.slice(0, insertAt),
+                  ...newCards,
+                  ...filtered.slice(insertAt),
+                ];
+              } else {
+                currentCards = [...filtered, ...newCards];
+              }
+              flushProgressMessage();
+            }
 
           } else if (event.type === "interrupt") {
             interrupted = true;
@@ -651,6 +782,7 @@ export default function Home() {
             finalChartData = event.chart_data ?? [];
             finalSources = event.sources ?? [];
             finalConfidence = event.confidence ?? "";
+            finalUnsupportedClaims = event.unsupported_claims ?? [];
           } else if (event.type === "error") {
             streamError = event.detail;
           }
@@ -675,7 +807,7 @@ export default function Home() {
         updated = [...base, { role: "assistant", content: clarificationQuestion }];
         setTypewriterIdx(updated.length - 1);
       } else if (finalAnswer) {
-        updated = [...base, { role: "assistant", content: finalAnswer, chartData: finalChartData, sources: finalSources, confidence: finalConfidence }];
+        updated = [...base, { role: "assistant", content: finalAnswer, chartData: finalChartData, sources: finalSources, confidence: finalConfidence, unsupportedClaims: finalUnsupportedClaims }];
         setTypewriterIdx(updated.length - 1);
       } else {
         setError("No answer generated. Check LangSmith traces or try again.");

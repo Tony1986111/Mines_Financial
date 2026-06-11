@@ -24,13 +24,13 @@ from pathlib import Path
 
 import fitz  # pymupdf
 
-OUT_JSON              = Path("ingest/filtered_pages.json")
+OUT_JSON = Path("ingest/filtered_pages.json")
 NUM_DENSITY_THRESHOLD = 0.05   # Minimum ratio of digit characters to non-whitespace characters
-MIN_DIGIT_COUNT       = 20     # Minimum digit count before a page is worth visual-model processing
-MIN_DRAWING_PATHS     = 10     # Minimum vector drawing paths, excluding simple divider lines
-MIN_TEXT_CHARS        = 100    # Minimum non-whitespace text chars, excluding image-only pages
-NUM_WORKERS           = 15     # Number of parallel scan workers
-SAVE_EVERY            = 50     # Save a checkpoint after every N scanned pages
+MIN_DIGIT_COUNT = 20     # Minimum digit count before a page is worth visual-model processing
+MIN_DRAWING_PATHS = 10     # Minimum vector drawing paths, excluding simple divider lines
+MIN_TEXT_CHARS = 100    # Minimum non-whitespace text chars, excluding image-only pages
+NUM_WORKERS = 15     # Number of parallel scan workers
+SAVE_EVERY = 50     # Save a checkpoint after every N scanned pages
 
 
 def _get_reports_dir(cli_path: str | None) -> Path:
@@ -58,14 +58,14 @@ def classify_page(page: fitz.Page) -> tuple[list[str], int, float]:
     reasons = []
 
     # Absolute digit count shared by all checks.
-    text        = page.get_text()
-    text_chars  = len(re.sub(r"\s", "", text))
+    text = page.get_text()
+    text_chars = len(re.sub(r"\s", "", text))
     digit_count = sum(1 for c in text if c.isdigit())
-    density     = digit_count / text_chars if text_chars else 0.0
-    has_digits  = digit_count >= MIN_DIGIT_COUNT
+    density = digit_count / text_chars if text_chars else 0.0
+    has_digits = digit_count >= MIN_DIGIT_COUNT
     dense_enough = density > NUM_DENSITY_THRESHOLD
-    has_text    = text_chars  >= MIN_TEXT_CHARS
-    passes      = has_digits and dense_enough and has_text
+    has_text = text_chars  >= MIN_TEXT_CHARS
+    passes = has_digits and dense_enough and has_text
 
     # 1. Table detection
     try:
@@ -79,8 +79,8 @@ def classify_page(page: fitz.Page) -> tuple[list[str], int, float]:
                 for tbl in tables.tables:
                     bbox = tbl.bbox
                     bbox_area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-                    tbl_text   = page.get_text(clip=bbox)
-                    tbl_nonws  = len(re.sub(r"\s", "", tbl_text))
+                    tbl_text = page.get_text(clip=bbox)
+                    tbl_nonws = len(re.sub(r"\s", "", tbl_text))
                     tbl_digits = sum(1 for c in tbl_text if c.isdigit())
                     if bbox_area > 0.8 * page_area:
                         # Possible two-column layout false positive: use absolute counts instead.
@@ -118,22 +118,22 @@ def scan_pdf(pdf_path: Path, page_start: int = 1, page_end: int | None = None, s
         print(f"  {pdf_path.name}  [{total} pages]")
 
     for i, page_idx in enumerate(range(page_start - 1, end)):
-        page                    = doc[page_idx]
-        page_num                = page_idx + 1
+        page = doc[page_idx]
+        page_num = page_idx + 1
         reasons, digits, density = classify_page(page)
         if reasons:
             results.append({
-                "source":          pdf_path.name,
-                "page":            page_num,
-                "reasons":         reasons,
+                "source": pdf_path.name,
+                "page": page_num,
+                "reasons": reasons,
                 "numeric_density": round(density, 3),
             })
 
         if show_progress:
-            done    = i + 1
+            done = i + 1
             bar_len = 30
-            filled  = int(bar_len * done / total)
-            bar     = "█" * filled + "░" * (bar_len - filled)
+            filled = int(bar_len * done / total)
+            bar = "█" * filled + "░" * (bar_len - filled)
             print(f"\r  [{bar}] {done}/{total}", end="", flush=True)
 
     if show_progress:
@@ -151,10 +151,10 @@ def scan_all(reports_dir: Path) -> list[dict]:
         sys.exit(1)
 
     all_results: list[dict] = []
-    lock              = threading.Lock()
-    pages_scanned     = [0]
-    last_checkpoint   = [0]
-    print_lock        = threading.Lock()
+    lock = threading.Lock()
+    pages_scanned = [0]
+    last_checkpoint = [0]
+    print_lock = threading.Lock()
 
     def log(msg: str) -> None:
         with print_lock:
@@ -166,32 +166,32 @@ def scan_all(reports_dir: Path) -> list[dict]:
         log(f"  [checkpoint] {total_scanned} pages scanned, {len(snapshot)} matched → saved")
 
     def worker(pdf_path: Path) -> None:
-        doc     = fitz.open(str(pdf_path))
-        total   = len(doc)
+        doc = fitz.open(str(pdf_path))
+        total = len(doc)
         matched = 0
         log(f"  ▶ {pdf_path.name}  [{total} pages]")
 
         for page_idx in range(total):
-            page                     = doc[page_idx]
-            page_num                 = page_idx + 1
+            page = doc[page_idx]
+            page_num = page_idx + 1
             reasons, digits, density = classify_page(page)
 
             with lock:
                 pages_scanned[0] += 1
                 if reasons:
                     all_results.append({
-                        "source":          pdf_path.name,
-                        "page":            page_num,
-                        "reasons":         reasons,
+                        "source": pdf_path.name,
+                        "page": page_num,
+                        "reasons": reasons,
                         "numeric_density": round(density, 3),
                     })
                     matched += 1
                 cur_checkpoint = pages_scanned[0] // SAVE_EVERY
-                should_save    = cur_checkpoint > last_checkpoint[0]
+                should_save = cur_checkpoint > last_checkpoint[0]
                 if should_save:
                     last_checkpoint[0] = cur_checkpoint
-                    snapshot           = list(all_results)
-                    cur_scanned        = pages_scanned[0]
+                    snapshot = list(all_results)
+                    cur_scanned = pages_scanned[0]
 
             if should_save:
                 save_checkpoint(snapshot, cur_scanned)
@@ -223,9 +223,9 @@ def main() -> None:
             sys.exit(1)
         page_start, page_end = 1, None
         if args.pages:
-            parts      = args.pages.split("-")
+            parts = args.pages.split("-")
             page_start = int(parts[0])
-            page_end   = int(parts[1]) if len(parts) > 1 else page_start
+            page_end = int(parts[1]) if len(parts) > 1 else page_start
         results = scan_pdf(pdf_path, page_start, page_end)
         print(f"{args.pdf} p{page_start}-{page_end or 'end'}: {len(results)} pages matched")
         for r in results:

@@ -5,7 +5,7 @@ import re
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from memory.semantic import save_conclusion
-from state import MainState
+from state import ChartData, MainState, RetrievalResult, RetrievedDoc, Source, UnsupportedClaim
 from utils.chart import extract_chart_data
 from utils.citation import apply_superscripts, build_prompt_sources, filter_and_renumber
 from utils.llm_large import llm_large as llm
@@ -95,10 +95,10 @@ def answer_node(state: MainState) -> dict:
     if state.get("is_out_of_scope", False):
         return {
             "final_answer": _OUT_OF_SCOPE_REPLY,
-            "chart_data":   [],
-            "sources":      [],
-            "confidence":   "",
-            "messages":     [AIMessage(content=_OUT_OF_SCOPE_REPLY)],
+            "chart_data": [],
+            "sources": [],
+            "confidence": "",
+            "messages": [AIMessage(content=_OUT_OF_SCOPE_REPLY)],
         }
 
     # L1 cache hit: skip RAG entirely, return the stored answer as-is.
@@ -108,28 +108,28 @@ def answer_node(state: MainState) -> dict:
         cached = state.get("semantic_context", "")
         return {
             "final_answer": cached,
-            "chart_data":   [],
-            "sources":      state.get("sources") or [],
-            "confidence":   "",
-            "messages":     [AIMessage(content=cached)],
+            "chart_data": [],
+            "sources": state.get("sources") or [],
+            "confidence": "",
+            "messages": [AIMessage(content=cached)],
         }
 
-    query            = state.get("query", "").strip()
-    aggregated       = (state.get("aggregated_context") or "").strip()
-    retrieval_result = state.get("retrieval_result") or {}
-    docs             = retrieval_result.get("documents", [])
+    query = state.get("query", "").strip()
+    aggregated = (state.get("aggregated_context") or "").strip()
+    retrieval_result: RetrievalResult = state.get("retrieval_result") or {}
+    docs: list[RetrievedDoc] = retrieval_result.get("documents", [])
 
     # Groundedness from grade_answer: "yes" / "partial" / "no"
-    grounded    = retrieval_result.get("grounded", "yes")
-    unsupported = retrieval_result.get("unsupported") or []
-    _conf_map   = {"yes": "high", "partial": "medium", "no": "low"}
-    confidence  = _conf_map.get(grounded, "high")
+    grounded = retrieval_result.get("grounded", "yes")
+    unsupported: list[UnsupportedClaim] = retrieval_result.get("unsupported") or []
+    _conf_map = {"yes": "high", "partial": "medium", "no": "low"}
+    confidence = _conf_map.get(grounded, "high")
 
     # Build citation source list and chart map before calling LLM,
     # so both can be injected into the system prompt.
     prompt_sources = build_prompt_sources(docs)
-    chart_data     = extract_chart_data(docs, text=aggregated)
-    chart_map      = {c["title"].split(" (")[0]: c for c in chart_data}
+    chart_data: list[ChartData] = extract_chart_data(docs, text=aggregated)
+    chart_map = {c["title"].split(" (")[0]: c for c in chart_data}
 
     # Call LLM to synthesise all sources into one coherent answer.
     # Falls back to raw aggregated_context if the LLM call fails.
@@ -153,11 +153,11 @@ def answer_node(state: MainState) -> dict:
     final_answer = apply_superscripts(final_answer, cited_docs)
 
     # Build sources list for frontend hover preview.
-    sources = [
+    sources: list[Source] = [
         {
-            "label":        label,
-            "preview":      _build_preview(doc),
-            "source_type":  doc.get("source_type", "text"),
+            "label": label,
+            "preview": _build_preview(doc),
+            "source_type": doc.get("source_type", "text"),
             "full_content": (doc.get("content") or "").strip(),
         }
         for label, doc in zip(cited_labels, cited_docs)
@@ -168,9 +168,9 @@ def answer_node(state: MainState) -> dict:
 
     # Persist to semantic memory BEFORE appending confidence note,
     # so cached answers stay clean.
-    if final_answer and retrieval_result.get("grade", "pass") == "pass":
+    if final_answer and retrieval_result.get("grade", "pass") == "pass" and grounded != "no":
         companies = list({d.get("company", "") for d in docs if d.get("company")})
-        fys       = list({d.get("fy", "") for d in docs if d.get("fy")})
+        fys = list({d.get("fy", "") for d in docs if d.get("fy")})
         save_conclusion(
             query=query,
             answer=final_answer,
@@ -182,19 +182,27 @@ def answer_node(state: MainState) -> dict:
     # Append inline confidence note for medium/low — high needs no caveat.
     if confidence in ("medium", "low"):
         claims = (unsupported or [])[:3]
-        note = "⚠️ Some claims in this answer could not be fully verified against the retrieved documents"
+
         if claims:
-            note += ": " + "; ".join(claims) + "."
+            _basis_labels = {"calculation": "calculated from report data", "interpolation": "estimated from report data", "general_knowledge": "from LLM knowledge, but not found in reports"}
+            formatted = "; ".join(
+                f"{c['claim']} ({_basis_labels.get(c.get('basis', ''), c.get('basis', ''))})"
+                if isinstance(c, dict) else c
+                for c in claims
+            )
+            note = f"⚠️ Some claims in this answer could not be fully verified against the retrieved documents: {formatted}."
         else:
-            note += "."
+            note = "⚠️ This answer could not be fully verified against the retrieved documents."
+
         if confidence == "low":
             note += " Please cross-check with the original annual reports."
         final_answer += f"\n\n{note}"
 
     return {
         "final_answer": final_answer,
-        "chart_data":   chart_data,
-        "sources":      sources,
-        "confidence":   confidence,
-        "messages":     [AIMessage(content=final_answer)],
+        "chart_data": chart_data,
+        "sources": sources,
+        "confidence": confidence,
+        "unsupported_claims": unsupported,
+        "messages": [AIMessage(content=final_answer)],
     }

@@ -40,7 +40,7 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 # CompanyDocsState carries the company and query for one retrieval branch.
-from state import CompanyDocsState
+from state import CompanyDocsState, RetrievedDoc
 
 load_dotenv()  # Load API keys and other environment variables from .env.
 
@@ -48,22 +48,22 @@ load_dotenv()  # Load API keys and other environment variables from .env.
 # Path(__file__) points to this file; parents[1] resolves to the project root.
 BASE_DIR = Path(__file__).resolve().parents[1]
 CHROMA_DIR = BASE_DIR / "chroma_db"       # ChromaDB persistence directory.
-BM25_DIR   = BASE_DIR / "bm25_index"      # Per-company BM25 pkl directory.
+BM25_DIR = BASE_DIR / "bm25_index"      # Per-company BM25 pkl directory.
 COLLECTION_NAME = "reports"               # Chroma collection name.
 EMBED_MODEL = "jina-embeddings-v3"        # Jina embedding model name.
 
 # --- Retrieval parameters -----------------------------------------------------
 # These values directly affect retrieval quality and are common RAG tuning knobs.
-
-BM25_K      = 8     # Number of BM25 candidates to retrieve.
-CHROMA_K    = 8     # Number of vector-search candidates to retrieve.
-FINAL_K     = 8     # Final number of deduped documents passed downstream.
+ 
+BM25_K = 8     # Number of BM25 candidates to retrieve.
+CHROMA_K = 8     # Number of vector-search candidates to retrieve.
+FINAL_K = 8     # Final number of deduped documents passed downstream.
 
 # Fusion weights for the two retrieval paths. They should sum to 1.0.
 # Chroma is weighted slightly higher to favor semantic matching.
 # Increase BM25_WEIGHT when exact financial terms are more important.
-BM25_WEIGHT    = 0.45
-CHROMA_WEIGHT  = 0.55
+BM25_WEIGHT = 0.45
+CHROMA_WEIGHT = 0.55
 
 
 # --- Lazy retriever loading ---------------------------------------------------
@@ -71,7 +71,7 @@ CHROMA_WEIGHT  = 0.55
 # Loading indexes and embedding clients on every call would be slow, so these
 # module-level singleton loaders initialize once and then reuse the same objects.
 
-_bm25_lock  = threading.Lock()
+_bm25_lock = threading.Lock()
 _bm25_cache: dict[str, Any] = {}  # company → BM25Retriever
 
 def _load_bm25_retriever(company: str):
@@ -158,8 +158,8 @@ def _doc_key(doc: Document) -> tuple[Any, ...]:
     300 characters of the document content.
     """
     meta = doc.metadata or {}
-    source      = meta.get("source")
-    page        = meta.get("page")
+    source = meta.get("source")
+    page = meta.get("page")
     chunk_index = meta.get("chunk_index")
     source_type = meta.get("source_type", "text")
     if source is not None and page is not None and chunk_index is not None:
@@ -168,7 +168,7 @@ def _doc_key(doc: Document) -> tuple[Any, ...]:
     return (doc.page_content[:300],)
 
 
-def _document_to_dict(doc: Document) -> dict:
+def _document_to_dict(doc: Document) -> RetrievedDoc:
     """
     Convert a LangChain Document into a plain dict.
 
@@ -178,15 +178,15 @@ def _document_to_dict(doc: Document) -> dict:
     """
     metadata = dict(doc.metadata or {})
     return {
-        "content":     doc.page_content,
-        "metadata":    metadata,
-        "source":      metadata.get("source"),
-        "page":        metadata.get("page"),
-        "company":     metadata.get("company"),
-        "fy":          metadata.get("fy"),        # Fiscal year.
+        "content": doc.page_content,
+        "metadata": metadata,
+        "source": metadata.get("source"),
+        "page": metadata.get("page"),
+        "company": metadata.get("company"),
+        "fy": metadata.get("fy"),        # Fiscal year.
         "chunk_index": metadata.get("chunk_index"),
         "source_type": metadata.get("source_type", "text"),
-        "title":       metadata.get("title", ""),
+        "title": metadata.get("title", ""),
     }
 
 
@@ -219,7 +219,7 @@ def _dedupe_documents(docs: list[Document], company: str) -> list[Document]:
 
 # --- LangGraph node -----------------------------------------------------------
 
-def retrieve_companies_node(state: CompanyDocsState) -> dict:
+def retrieve_company_node(state: CompanyDocsState) -> dict:
     """
     Run hybrid retrieval for one company and return relevant documents.
 
@@ -233,7 +233,7 @@ def retrieve_companies_node(state: CompanyDocsState) -> dict:
     Parallel retrieval context:
     In the parent RetrievalState graph, companies is a list such as
     ["BHP", "RIO"]. LangGraph's Send API expands that list and starts
-    one retrieve_companies_node per company in parallel. Each branch's
+    one retrieve_company_node per company in parallel. Each branch's
     retrieved_docs are merged into parent state with operator.add.
 
     Retrieval flow:
@@ -243,23 +243,17 @@ def retrieve_companies_node(state: CompanyDocsState) -> dict:
     4. Deduplicate, filter, serialize to dictionaries, and return the list.
     """
     company = state.get("company", "").strip().upper()
-    query   = state.get("query",   "").strip()
+    query = state.get("query",   "").strip()
 
     # Return early for empty queries to avoid pointless retrieval calls.
     if not query:
         return {"retrieved_docs": []}
 
-    # Chroma metadata filter:
-    # If a company is specified, restrict vector search to that company first.
-    # Without a company, search the full collection.
-    search_kwargs: dict = (
-        {"k": CHROMA_K, "filter": {"company": company}}
-        if company
-        else {"k": CHROMA_K}
-    )
+    # Chroma metadata filter: restrict vector search to that company.
+    search_kwargs: dict = {"k": CHROMA_K, "filter": {"company": company}}
 
     # Load retrievers. The first call initializes them; later calls reuse them.
-    bm25_retriever   = _load_bm25_retriever(company)
+    bm25_retriever = _load_bm25_retriever(company)
     chroma_retriever = _load_vectorstore().as_retriever(search_kwargs=search_kwargs)
 
     # EnsembleRetriever fuses both paths with Reciprocal Rank Fusion (RRF).
@@ -278,7 +272,7 @@ def retrieve_companies_node(state: CompanyDocsState) -> dict:
 
     # Deduplicate, filter by company, serialize to dicts, and write to state.
     # company_status uses a merge reducer so parallel company nodes don't overwrite each other.
-    docs_found = [_document_to_dict(doc) for doc in _dedupe_documents(docs, company)]
+    docs_found: list[RetrievedDoc] = [_document_to_dict(doc) for doc in _dedupe_documents(docs, company)]
     return {
         "retrieved_docs": docs_found,
         "company_status": {company: bool(docs_found)},

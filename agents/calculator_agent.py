@@ -28,20 +28,13 @@ _agent = create_react_agent(
 
 
 def calculator_agent_node(state: MainState) -> dict:
-    query   = state.get("query", "")
+    query = state.get("query", "")
     context = state.get("aggregated_context", "")
-    if not query:
-        return {"calc_result": ""}
 
-    user_content = f"Question: {query}"
-    if context:
-        user_content += f"\n\nRetrieved context:\n{context}"
+    user_content = f"Question: {query}\n\nRetrieved context:\n{context}"
 
-    result      = _agent.invoke({"messages": [{"role": "user", "content": user_content}]})
+    result = _agent.invoke({"messages": [{"role": "user", "content": user_content}]})
     calc_result = result["messages"][-1].content
-
-    existing   = (state.get("aggregated_context") or "").strip()
-    calc_block = f"【Calculation Result】\n{calc_result}"
-    updated    = f"{existing}\n\n{calc_block}".strip() if existing else calc_block
+    updated = f"{context}\n\n【Calculation Result】\n{calc_result}".strip()
 
     return {"calc_result": calc_result, "aggregated_context": updated}

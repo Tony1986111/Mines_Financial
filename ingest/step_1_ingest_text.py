@@ -24,13 +24,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
-_ROOT      = Path(__file__).parent.parent
+_ROOT = Path(__file__).parent.parent
 CHROMA_DIR = str(_ROOT / "chroma_db")
 
-CHUNK_SIZE        = 1000
-CHUNK_OVERLAP     = 200
-EMBED_MODEL       = "jina-embeddings-v3"
-EMBED_BATCH_SIZE  = 50    # chunks per Jina API call (~37 K tokens)
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
+EMBED_MODEL = "jina-embeddings-v3"
+EMBED_BATCH_SIZE = 50    # chunks per Jina API call (~37 K tokens)
 EMBED_BATCH_DELAY = 35    # seconds between batches to stay under 100 K TPM
 
 
@@ -73,7 +73,7 @@ def init_vectorstore() -> Chroma:
     if not keys:
         raise RuntimeError("No Jina API key found. Set JINA_API_KEY in .env")
     _log(f"Initialising ChromaDB with {len(keys)} Jina key(s)...")
-    instances  = [JinaEmbeddings(jina_api_key=k, model_name=EMBED_MODEL) for k in keys]
+    instances = [JinaEmbeddings(jina_api_key=k, model_name=EMBED_MODEL) for k in keys]
     embeddings = RoundRobinEmbeddings(instances) if len(instances) > 1 else instances[0]
     store = Chroma(
         collection_name="reports",
@@ -88,27 +88,27 @@ def init_vectorstore() -> Chroma:
 
 def _parse_filename(filename: str) -> tuple[str, str]:
     """Return (company, fy) from a filename like BHP_FY2024.pdf."""
-    stem  = Path(filename).stem
+    stem = Path(filename).stem
     parts = stem.split("_")
     return parts[0], parts[1]
 
 
 def extract_pages(pdf_path: Path) -> list[dict]:
     """Read every page of a PDF and return non-empty text pages as dicts."""
-    filename    = pdf_path.name
+    filename = pdf_path.name
     company, fy = _parse_filename(filename)
-    doc         = fitz.open(str(pdf_path))
+    doc = fitz.open(str(pdf_path))
     pages: list[dict] = []
     for page_idx in range(len(doc)):
         text = doc[page_idx].get_text()
         if len(text.strip()) < 100:
             continue
         pages.append({
-            "text":    text,
-            "source":  filename,
-            "page":    page_idx + 1,
+            "text": text,
+            "source": filename,
+            "page": page_idx + 1,
             "company": company,
-            "fy":      fy,
+            "fy": fy,
         })
     doc.close()
     return pages
@@ -127,10 +127,10 @@ def pages_to_documents(pages: list[dict]) -> list[Document]:
             documents.append(Document(
                 page_content=chunk_text,
                 metadata={
-                    "source":      page["source"],
-                    "page":        page["page"],
-                    "company":     page["company"],
-                    "fy":          page["fy"],
+                    "source": page["source"],
+                    "page": page["page"],
+                    "company": page["company"],
+                    "fy": page["fy"],
                     "chunk_index": i,
                     "source_type": "text",
                 },
@@ -152,9 +152,9 @@ def add_to_chroma(
     ]
     total_batches = (len(documents) + EMBED_BATCH_SIZE - 1) // EMBED_BATCH_SIZE
     for i in range(0, len(documents), EMBED_BATCH_SIZE):
-        batch_num  = i // EMBED_BATCH_SIZE + 1
+        batch_num = i // EMBED_BATCH_SIZE + 1
         batch_docs = documents[i : i + EMBED_BATCH_SIZE]
-        batch_ids  = ids[i : i + EMBED_BATCH_SIZE]
+        batch_ids = ids[i : i + EMBED_BATCH_SIZE]
         _log(f"  Batch {batch_num}/{total_batches}: sending {len(batch_docs)} chunks to Jina...")
         vectorstore.add_documents(documents=batch_docs, ids=batch_ids)
         _log(f"  Batch {batch_num} done.")
@@ -169,7 +169,7 @@ def process_pdf(pdf_path: Path, vectorstore: Chroma, batch_delay: int) -> int:
     """Extract, chunk, and embed one PDF. Returns chunk count."""
     _log(f"── {pdf_path.name} ──")
     pages = extract_pages(pdf_path)
-    docs  = pages_to_documents(pages)
+    docs = pages_to_documents(pages)
     _log(f"  {len(pages)} pages → {len(docs)} chunks. Embedding...")
     add_to_chroma(docs, vectorstore, delay=batch_delay)
     _log(f"  Done: {len(docs)} chunks stored.")
@@ -183,7 +183,7 @@ def main() -> None:
     args = parser.parse_args()
 
     reports_dir = _get_reports_dir(args.reports_dir)
-    key_count   = sum(1 for k in [os.getenv("JINA_API_KEY"), os.getenv("JINA_API_KEY_1")] if k)
+    key_count = sum(1 for k in [os.getenv("JINA_API_KEY"), os.getenv("JINA_API_KEY_1")] if k)
     batch_delay = EMBED_BATCH_DELAY // max(key_count, 1)
     vectorstore = init_vectorstore()
 

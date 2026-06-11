@@ -145,11 +145,10 @@ def _enrich_output_from_query(output: dict[str, Any], query: str) -> dict[str, A
     return output
 
 
-# Runs only the routing-related nodes (retrieve decision, tool selector, query rewrite)
+# Runs only the routing-related nodes (retrieve decision, query rewrite)
 # instead of the full graph, keeping real-mode routing evals fast and isolated.
 def run_real_routing_like_case(case: dict[str, Any]) -> dict[str, Any]:
     """Run the real LLM routing nodes without invoking the full graph."""
-    from nodes.dynamic_tool_selector import dynamic_tool_selector_node
     from nodes.retrieve_decision import retrieve_decision_node
     from retrieval_nodes.query_rewrite import query_rewrite_node
 
@@ -160,18 +159,13 @@ def run_real_routing_like_case(case: dict[str, Any]) -> dict[str, Any]:
     output.update(decision)
 
     if output.get("needs_retrieval") and not output.get("needs_clarification"):
-        selection = dynamic_tool_selector_node({"query": query})
-        output.update(selection)
-
-        if "retrieval" in (output.get("selected_agents") or []):
-            rewrite = query_rewrite_node({"query": query, "messages": []})
-            output.update({
-                "rewritten_query": rewrite.get("rewritten_query", ""),
-                "companies": rewrite.get("companies", []),
-                "company_queries": rewrite.get("company_queries", []),
-            })
+        rewrite = query_rewrite_node({"query": query, "messages": []})
+        output.update({
+            "rewritten_query": rewrite.get("rewritten_query", ""),
+            "companies": rewrite.get("companies", []),
+            "company_queries": rewrite.get("company_queries", []),
+        })
     else:
-        output.setdefault("selected_agents", [])
         output.setdefault("needs_calculation", False)
 
     return _enrich_output_from_query(output, query)
@@ -201,7 +195,7 @@ def run_real_retrieval_case(case: dict[str, Any]) -> dict[str, Any]:
     if "documents" in retrieval_result:
         output["documents"] = retrieval_result["documents"]
     elif "documents" not in output:
-        output["documents"] = output.get("graded_docs") or output.get("merged_docs") or []
+        output["documents"] = output.get("graded_docs") or []
     return _enrich_output_from_query(output, query)
 
 

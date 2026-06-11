@@ -36,7 +36,6 @@ def validate_case(case: dict[str, Any]) -> None:
         [
             "needs_retrieval",
             "needs_clarification",
-            "selected_agents",
             "needs_calculation",
             "should_have_citation",
         ],
@@ -54,7 +53,6 @@ def validate_case(case: dict[str, Any]) -> None:
         require_bool_field(case, field)
     # Assert every collection field is a list (may be empty) to prevent type errors during eval.
     for field in [
-        "selected_agents",
         "companies",
         "fiscal_years",
         "metrics",
@@ -79,7 +77,6 @@ def evaluate_boundary_output(case: dict[str, Any], output: dict[str, Any]) -> li
         failures.extend(check_bool(field, expected, output))
 
     # Verify that the output lists contain at least the items declared in the expected lists.
-    failures.extend(check_list_contains("selected_agents", expected, output))
     failures.extend(check_list_contains("companies", expected, output))
     failures.extend(check_list_contains("fiscal_years", expected, output))
     failures.extend(check_list_contains("metrics", expected, output))

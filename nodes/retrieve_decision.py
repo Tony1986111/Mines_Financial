@@ -33,8 +33,8 @@ _SYSTEM_PROMPT = """You are a routing agent for an ASX mining financial report c
     clarification_question: if needs_clarification is true, write a short, specific question
     to resolve the ambiguity. Leave empty otherwise.
 
-    direct_answer: if needs_retrieval is false and is_out_of_scope is false, provide a
-    concise helpful answer. Leave empty otherwise.
+    direct_answer: if needs_retrieval, needs_news, needs_clarification, and is_out_of_scope
+    are all false, provide a concise helpful answer. Leave empty otherwise.
 
     Examples:
     "BHP FY2024 revenue?" → is_out_of_scope=false, needs_retrieval=true, needs_clarification=false
@@ -51,14 +51,15 @@ _SYSTEM_PROMPT = """You are a routing agent for an ASX mining financial report c
 
 
 class _RoutingDecision(BaseModel):
-    is_out_of_scope:        bool = Field(default=False, description="True if the question is completely unrelated to ASX mining companies or their financial data.")
-    needs_retrieval:        bool = Field(description="True if financial data from reports is needed.")
-    needs_news:             bool = Field(default=False, description="True if recent news or web search is needed.")
-    needs_clarification:    bool = Field(description="True if the question is too vague to proceed.")
+    is_out_of_scope: bool = Field(default=False, description="True if the question is completely unrelated to ASX mining companies or their financial data.")
+    needs_retrieval: bool = Field(description="True if financial data from reports is needed.")
+    needs_news: bool = Field(default=False, description="True if recent news or web search is needed.")
+    needs_clarification: bool = Field(description="True if the question is too vague to proceed.")
     clarification_question: str  = Field(default="", description="Question to ask the user if clarification is needed.")
-    direct_answer:          str  = Field(default="", description="Direct answer when no retrieval or news is needed.")
+    direct_answer: str  = Field(default="", description="Direct answer when no retrieval or news is needed.")
 
 
+# DeepSeek rejects json_schema response_format; function_calling is required
 _structured_llm = llm.with_structured_output(_RoutingDecision, method="function_calling")
 
 
@@ -73,26 +74,34 @@ def retrieve_decision_node(state: MainState) -> dict:
             HumanMessage(content=query),
         ])
         out: dict = {
-            "is_out_of_scope":     result.is_out_of_scope,
-            "needs_retrieval":     result.needs_retrieval,
-            "needs_news":          result.needs_news,
+            "is_out_of_scope": result.is_out_of_scope,
+            "needs_retrieval": result.needs_retrieval,
+            "needs_news": result.needs_news,
             "needs_clarification": result.needs_clarification,
         }
         if result.is_out_of_scope:
             return out
+
         if result.needs_clarification:
             out["clarification_question"] = (
                 result.clarification_question
                 or "Could you clarify which company (BHP, RIO, FMG, MIN, NST), "
                    "fiscal year, and metric you are asking about?"
             )
-        if not result.needs_retrieval:
-            if result.direct_answer:
-                out["aggregated_context"] = result.direct_answer
-            else:
-                # LLM skipped retrieval but provided no answer — fall back to retrieval
-                out["needs_retrieval"] = True
+
+        # Retrieval/news path: agents will populate context downstream
+        if result.needs_retrieval or result.needs_news:
+            return out
+
+        # Direct answer path: routing LLM answered inline, store it as context
+        if result.direct_answer:
+            out["aggregated_context"] = result.direct_answer
+        else:
+            # LLM skipped retrieval but provided no direct answer — force retrieval as fallback
+            out["needs_retrieval"] = True
+
         return out
+        
     except Exception:
         # Fail safe: always retrieve, never block on clarification
         return {"is_out_of_scope": False, "needs_retrieval": True, "needs_clarification": False}

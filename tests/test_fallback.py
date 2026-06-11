@@ -18,7 +18,7 @@ def test_fallback_non_empty_but_short_context_returns_insufficient_reason():
     # Include a document but keep aggregated context below the useful threshold.
     state = {
         "aggregated_context": "short",
-        "retrieval_result":   {"documents": [{"content": "some doc"}]},
+        "retrieval_result": {"documents": [{"content": "some doc"}]},
     }
 
     # Fallback should classify this as incomplete context rather than no docs.

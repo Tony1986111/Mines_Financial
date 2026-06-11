@@ -25,9 +25,9 @@ from langchain_core.documents import Document
 
 load_dotenv()
 
-_ROOT       = Path(__file__).parent.parent
-CHROMA_DIR  = str(_ROOT / "chroma_db")
-BM25_DIR    = _ROOT / "bm25_index"
+_ROOT = Path(__file__).parent.parent
+CHROMA_DIR = str(_ROOT / "chroma_db")
+BM25_DIR = _ROOT / "bm25_index"
 EMBED_MODEL = "jina-embeddings-v3"
 _BATCH_SIZE = 5000
 

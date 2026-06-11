@@ -7,59 +7,116 @@ from langgraph.graph.message import add_messages
 from langchain_core.messages import AnyMessage
 
 
+# ── RetrievalState classes ─────────────────────────────────────────────────────
+
 def _merge_company_status(existing: dict, update: dict) -> dict:
     """Merge two company_status dicts. Used as a LangGraph reducer so parallel
-    retrieve_companies nodes can each write their own company's status without
+    retrieve_company nodes can each write their own company's status without
     overwriting each other."""
     return {**existing, **update}
 
 
-class MainState(TypedDict):
-    messages:               Annotated[list[AnyMessage], add_messages]
-    needs_retrieval:        bool
-    needs_news:             bool
-    needs_clarification:    bool
-    selected_agents:        list[str]
-    clarification_question: str
-    query:                  str
-    retrieval_result:       dict
-    calc_result:            str
-    news_context:           str
-    aggregated_context:     str
-    needs_calculation:      bool
-    semantic_context:       str
-    cache_hit:              bool
-    guardrails_passed:      bool
-    is_out_of_scope:        bool
-    final_answer:           str
-    chart_data:             list
-    sources:                list
-    confidence:             str
-    compressed:             bool
+class CompanyQuery(TypedDict):
+    company: str
+    query: str
 
 
-class RetrievalState(TypedDict):
-    messages:         Annotated[list[AnyMessage], add_messages]
-    query:            str
-    rewritten_query:  str
-    companies:        list[str]
-    company_queries:  list[dict]
-    semantic_context: str
-    retrieved_docs:   Annotated[list[dict], operator.add]
-    merged_docs:      list[dict]
-    graded_docs:      list[dict]
-    answer_draft:     str
-    grade:            str
-    retry_count:      int
-    retrieval_result: dict
-    company_status:   Annotated[dict[str, bool], _merge_company_status]
+class RetrievedDoc(TypedDict):
+    content: str
+    metadata: dict
+    source: str
+    page: int
+    company: str
+    fy: str
+    chunk_index: int
+    source_type: str
+    title: str
 
+
+class UnsupportedClaim(TypedDict):
+    claim: str
+    basis: str  # "calculation", "interpolation", or "general_knowledge"
+
+
+class RetrievalResult(TypedDict):
+    documents: list[RetrievedDoc]
+    answer_draft: str
+    grounded: str           # "yes", "partial", or "no"
+    unsupported: list[UnsupportedClaim]
+    grade: str              # "pass" or "fail"
+    company_status: dict[str, bool]
+    retrieved_count: int
+    company_queries: list[CompanyQuery]
+    rewritten_query: str
 
 class CompanyDocsState(TypedDict):
     company: str
-    query:   str
-    docs:    list[dict]
+    query: str
+    docs: list[RetrievedDoc]
+
+class RetrievalState(TypedDict):
+    messages: Annotated[list[AnyMessage], add_messages]
+    query: str
+    rewritten_query: str
+    companies: list[str]
+    company_queries: list[CompanyQuery]
+    semantic_context: str
+    retrieved_docs: Annotated[list[RetrievedDoc], operator.add]
+    graded_docs: list[RetrievedDoc]
+    retrieved_count: int
+    answer_draft: str
+    grade: str
+    grounded: str               
+    unsupported_hints: list[str] 
+    retry_count: int
+    retrieval_result: RetrievalResult
+    company_status: Annotated[dict[str, bool], _merge_company_status]
 
 
 class RetrievalOutput(TypedDict):
-    retrieval_result: dict
+    retrieval_result: RetrievalResult
+
+
+# ── MainState classes ──────────────────────────────────────────────────────────
+
+class Source(TypedDict):
+    label: str
+    preview: str
+    source_type: str
+    full_content: str
+
+
+class ChartDataset(TypedDict):
+    label: str
+    data: list
+
+
+class ChartData(TypedDict):
+    type: str
+    title: str
+    labels: list[str]
+    datasets: list[ChartDataset]
+
+
+class MainState(TypedDict):
+    messages: Annotated[list[AnyMessage], add_messages]
+    needs_retrieval: bool
+    needs_news: bool
+    needs_clarification: bool
+    clarification_question: str
+    query: str
+    retrieval_result: RetrievalResult
+    calc_result: str
+    news_context: str
+    aggregated_context: str
+    needs_calculation: bool
+    unsupported_claims: list[UnsupportedClaim]
+    semantic_context: str
+    cache_hit: bool
+    guardrails_passed: bool
+    is_out_of_scope: bool
+    final_answer: str
+    chart_data: list[ChartData]
+    sources: list[Source]
+    confidence: str
+    compressed: bool

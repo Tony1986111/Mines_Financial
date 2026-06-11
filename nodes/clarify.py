@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from langgraph.types import interrupt
-
 from state import MainState
 
 _FALLBACK_QUESTION = (
@@ -19,7 +17,7 @@ def clarify_node(state: MainState) -> dict:
     user_answer: str = interrupt({"question": question})
 
     original_query = state.get("query", "").strip()
-    merged_query = f"{original_query} {user_answer}".strip() if original_query else user_answer
+    merged_query = f"{original_query} {user_answer}".strip()
 
     return {
         "query": merged_query,

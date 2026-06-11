@@ -317,23 +317,74 @@ def chat_stream(req: ChatRequest):
                     "query": req.message,
                 }
 
-            pending_node: str | None = None
+            inner_node_calls: dict[str, int] = {}
+            last_outer_node: str | None = None
 
             for chunk in graph.stream(
-                stream_input, config, stream_mode=["updates", "values"]
+                stream_input, config, stream_mode=["updates", "values"], subgraphs=True
             ):
-                mode, data = chunk
+                ns, mode, data = chunk
                 if mode == "updates":
                     node_name = next(iter(data))
-                    pending_node = node_name
                     yield _sse({"type": "node_start", "node": node_name})
-                elif mode == "values" and pending_node is not None:
-                    yield _sse({
-                        "type": "node_done",
-                        "node": pending_node,
-                        "state": _serialize_state(data),
-                    })
-                    pending_node = None
+                    if ns == ():
+                        last_outer_node = node_name
+                    else:
+                        node_output = data.get(node_name)
+                        call_idx = inner_node_calls.get(node_name, 0)
+                        inner_node_calls[node_name] = call_idx + 1
+                        # grade_docs aggregates parallel Send branches — LangGraph emits
+                        # None in "updates" for such nodes. Skip; we synthesize the event
+                        # from retrieval_result when retrieval_agent completes.
+                        if node_name == "grade_docs":
+                            continue
+                        node_output = node_output or {}
+                        state_dict = _serialize_state(node_output) if isinstance(node_output, dict) else {}
+                        state_dict["_call_idx"] = call_idx
+                        if node_name == "retrieve_company":
+                            state_dict["_pass"] = max(0, inner_node_calls.get("query_rewrite", 1) - 1)
+                        yield _sse({"type": "node_done", "node": node_name, "state": state_dict})
+                        # grade_answer is the only inner node with real data. Use its
+                        # retrieval_result to backfill state for query_rewrite and retrieve_company,
+                        # which both have None outputs in LangGraph's inner "updates" stream.
+                        if node_name == "grade_answer" and isinstance(node_output, dict):
+                            rr = node_output.get("retrieval_result") or {}
+                            company_queries = rr.get("company_queries") or []
+                            rewritten_query = rr.get("rewritten_query") or ""
+                            company_status = rr.get("company_status") or {}
+                            qr_idx = max(0, inner_node_calls.get("query_rewrite", 1) - 1)
+                            yield _sse({"type": "node_done", "node": "query_rewrite", "state": {
+                                "company_queries": company_queries,
+                                "rewritten_query": rewritten_query,
+                                "_call_idx": qr_idx,
+                            }})
+                            if company_status:
+                                yield _sse({"type": "node_done", "node": "retrieve_company", "state": {
+                                    "company_status": company_status,
+                                    "_call_idx": 0,
+                                }})
+                elif mode == "values":
+                    if ns == () and last_outer_node is not None:
+                        state_dict = _serialize_state(data)
+                        yield _sse({
+                            "type": "node_done",
+                            "node": last_outer_node,
+                            "state": state_dict,
+                        })
+                        # When retrieval_agent finishes, synthesise a grade_docs event so
+                        # the frontend can show retrieved/passed counts. retrieval_result
+                        # is the authoritative source — it carries retrieved_count (set by
+                        # grade_docs_node) and documents (the graded docs list).
+                        if last_outer_node == "retrieval_agent":
+                            rr = data.get("retrieval_result") or {}
+                            grade_docs_state = {
+                                "retrieved_count": rr.get("retrieved_count", 0),
+                                "graded_docs": rr.get("documents", []),
+                                "grade": rr.get("grade", ""),
+                                "_call_idx": 0,
+                            }
+                            yield _sse({"type": "node_done", "node": "grade_docs", "state": grade_docs_state})
+                        last_outer_node = None
 
             # After stream: check for interrupt or emit final answer
             state = graph.get_state(config)
@@ -346,11 +397,12 @@ def chat_stream(req: ChatRequest):
             if interrupt_q:
                 yield _sse({"type": "interrupt", "question": interrupt_q})
             else:
-                answer     = state.values.get("final_answer", "")
+                answer = state.values.get("final_answer", "")
                 chart_data = state.values.get("chart_data", [])
-                sources    = state.values.get("sources", [])
+                sources = state.values.get("sources", [])
                 confidence = state.values.get("confidence", "")
-                yield _sse({"type": "done", "answer": answer, "chart_data": chart_data, "sources": sources, "confidence": confidence})
+                unsupported_claims = state.values.get("unsupported_claims", [])
+                yield _sse({"type": "done", "answer": answer, "chart_data": chart_data, "sources": sources, "confidence": confidence, "unsupported_claims": unsupported_claims})
 
         except Exception as e:
             import traceback

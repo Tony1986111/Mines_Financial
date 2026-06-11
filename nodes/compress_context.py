@@ -56,7 +56,7 @@ def compress_context_node(state: MainState) -> dict:
         return {"compressed": False}
 
     # Split: messages to compress vs. messages to keep verbatim.
-    older  = messages[:-KEEP_RECENT]
+    older = messages[:-KEEP_RECENT]
     # recent stays in state; we don't return them (no duplication).
 
     summary_text = _summarize(older)
@@ -65,7 +65,7 @@ def compress_context_node(state: MainState) -> dict:
         return {"compressed": False}
 
     # Delete the older messages and inject one summary SystemMessage in their place.
-    removals    = [RemoveMessage(id=m.id) for m in older]
+    removals = [RemoveMessage(id=m.id) for m in older]
     summary_msg = SystemMessage(
         content=f"[Earlier conversation compressed]: {summary_text}"
     )

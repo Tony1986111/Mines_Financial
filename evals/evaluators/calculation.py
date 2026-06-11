@@ -41,7 +41,6 @@ def validate_case(case: dict[str, Any]) -> None:
     require_expected_fields(
         case,
         [
-            "selected_agents",
             "needs_calculation",
             "calculation_type",
             "companies",
@@ -53,7 +52,7 @@ def validate_case(case: dict[str, Any]) -> None:
     )
     require_bool_field(case, "needs_calculation")
     require_bool_field(case, "should_have_citation")
-    for field in ["selected_agents", "companies", "fiscal_years", "metrics"]:
+    for field in ["companies", "fiscal_years", "metrics"]:
         require_list_field(case, field)
 
     # Reject cases that name an unknown tool or forget to set needs_calculation=true.
@@ -70,7 +69,6 @@ def evaluate_calculation_output(case: dict[str, Any], output: dict[str, Any]) ->
     failures: list[str] = []
 
     failures.extend(check_bool("needs_calculation", expected, output))
-    failures.extend(check_list_contains("selected_agents", expected, output))
     failures.extend(check_list_contains("companies", expected, output))
     failures.extend(check_list_contains("fiscal_years", expected, output))
     failures.extend(check_list_contains("metrics", expected, output))

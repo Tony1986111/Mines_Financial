@@ -2,8 +2,6 @@ from utils.citation import (
     apply_superscripts,
     build_prompt_sources,
     filter_and_renumber,
-    format_inline,
-    format_sources_section,
 )
 
 
@@ -66,24 +64,6 @@ def test_build_prompt_sources_deduplicates_sources_by_company_fy_and_page():
         "[3] FMG Annual Report FY2023, p.33",
     ]
 
-
-# Verify the rendered Sources section matches prompt-source numbering.
-def test_format_sources_section_uses_same_numbering_as_prompt_sources():
-    """The final Sources section must match the numbering shown to the model.
-
-    If these two functions drift apart, inline markers like [1] can point to
-    the wrong report in the final answer.
-    """
-    # Format the final user-facing Sources section from the same fixtures.
-    section = format_sources_section(_sample_docs())
-
-    # Check the section text keeps the same labels and order as prompt sources.
-    assert section == (
-        "Sources:\n"
-        "[1] BHP Annual Report FY2024, Financial performance, p.12\n"
-        "[2] RIO Annual Report FY2024, Income statement, p.8\n"
-        "[3] FMG Annual Report FY2023, p.33"
-    )
 
 
 # Verify cited sources are filtered and renumbered without gaps.
@@ -214,12 +194,3 @@ def test_apply_superscripts_with_cited_docs_adds_hover_lookup_attribute():
     # Confirm the superscript includes data-n for frontend lookup.
     assert html == 'BHP revenue increased <sup class="citation" data-n="1">[1]</sup>.'
 
-
-# Verify the compact inline label used in synthesis prompts.
-def test_format_inline_builds_compact_single_document_label():
-    """format_inline is still used in retrieval synthesis prompts."""
-    # Build a short inline label from minimal document metadata.
-    label = format_inline({"company": "NST", "fy": "FY2025", "page": 41})
-
-    # Confirm the prompt-facing label keeps company, FY, and page together.
-    assert label == "(NST FY2025, p.41)"

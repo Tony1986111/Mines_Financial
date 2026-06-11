@@ -24,16 +24,15 @@ CASE_TYPE = "routing"
 def validate_case(case: dict[str, Any]) -> None:
     """Validate one routing case.
 
-    Routing cases test the supervisor decision fields used by
-    `retrieve_decision_node` and `dynamic_tool_selector_node`.
+    Routing cases test the supervisor decision fields used by `retrieve_decision_node`.
     """
     require_case_fields(case, CASE_TYPE)
     require_expected_fields(
         case,
         [
             "needs_retrieval",
+            "needs_news",
             "needs_clarification",
-            "selected_agents",
             "needs_calculation",
             "should_have_citation",
         ],
@@ -41,13 +40,14 @@ def validate_case(case: dict[str, Any]) -> None:
     # Ensure every boolean decision flag is actually a bool, not a string or None.
     for field in [
         "needs_retrieval",
+        "needs_news",
         "needs_clarification",
         "needs_calculation",
         "should_have_citation",
     ]:
         require_bool_field(case, field)
     # Ensure entity/metric fields are lists so membership checks work correctly.
-    for field in ["selected_agents", "companies", "fiscal_years", "metrics"]:
+    for field in ["companies", "fiscal_years", "metrics"]:
         require_list_field(case, field)
 
 
@@ -62,12 +62,11 @@ def evaluate_routing_output(case: dict[str, Any], output: dict[str, Any]) -> lis
     failures: list[str] = []
 
     # Check each boolean routing decision against the expected value.
-    for field in ["needs_retrieval", "needs_clarification", "needs_calculation"]:
+    for field in ["needs_retrieval", "needs_news", "needs_clarification", "needs_calculation"]:
         failures.extend(check_bool(field, expected, output))
 
-    # Verify that all expected list items (agents, entities, dates, metrics)
+    # Verify that all expected list items (entities, dates, metrics)
     # are present in the actual output — order-independent subset check.
-    failures.extend(check_list_contains("selected_agents", expected, output))
     failures.extend(check_list_contains("companies", expected, output))
     failures.extend(check_list_contains("fiscal_years", expected, output))
     failures.extend(check_list_contains("metrics", expected, output))

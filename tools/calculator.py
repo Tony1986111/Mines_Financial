@@ -1,26 +1,7 @@
 from __future__ import annotations
-import ast
 import math
-import operator as op
 from langchain_core.tools import tool
-
-_OPS = {
-    ast.Add:  op.add,
-    ast.Sub:  op.sub,
-    ast.Mult: op.mul,
-    ast.Div:  op.truediv,
-    ast.Pow:  op.pow,
-    ast.USub: op.neg,
-}
-
-def _eval_ast(node: ast.AST) -> float:
-    if isinstance(node, ast.Constant):
-        return float(node.value)
-    if isinstance(node, ast.BinOp):
-        return _OPS[type(node.op)](_eval_ast(node.left), _eval_ast(node.right))
-    if isinstance(node, ast.UnaryOp):
-        return _OPS[type(node.op)](_eval_ast(node.operand))
-    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+from simpleeval import simple_eval
 
 
 @tool
@@ -38,11 +19,10 @@ def calculate(expression: str) -> str:
                     Do NOT include variable names or units — numbers only.
     """
     try:
-        tree = ast.parse(expression.strip(), mode="eval")
-        result = _eval_ast(tree.body)
+        result = simple_eval(expression.strip())
         return f"{expression} = {result:.6g}"
-    except (KeyError, ZeroDivisionError, ValueError) as e:
-        return f"Error: {e}"
+    except ZeroDivisionError:
+        return "Error: division by zero"
     except Exception:
         return f"Error: could not parse '{expression}' — use numbers and operators only."
 

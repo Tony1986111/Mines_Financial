@@ -22,12 +22,12 @@ from langchain_core.documents import Document
 
 load_dotenv()
 
-_ROOT       = Path(__file__).parent.parent
-OUT_JSON    = Path("ingest/output_vison.json")
-CHROMA_DIR  = str(_ROOT / "chroma_db")
+_ROOT = Path(__file__).parent.parent
+OUT_JSON = Path("ingest/output_vison.json")
+CHROMA_DIR = str(_ROOT / "chroma_db")
 
-EMBED_MODEL       = "jina-embeddings-v3"
-EMBED_BATCH_SIZE  = 50
+EMBED_MODEL = "jina-embeddings-v3"
+EMBED_BATCH_SIZE = 50
 EMBED_BATCH_DELAY = 35   # seconds between batches to stay under 100 K TPM
 
 
@@ -57,7 +57,7 @@ def init_vectorstore() -> Chroma:
     if not keys:
         raise RuntimeError("No Jina API key found. Set JINA_API_KEY in .env")
     _log(f"Initialising ChromaDB with {len(keys)} Jina key(s)...")
-    instances  = [JinaEmbeddings(jina_api_key=k, model_name=EMBED_MODEL) for k in keys]
+    instances = [JinaEmbeddings(jina_api_key=k, model_name=EMBED_MODEL) for k in keys]
     embeddings = RoundRobinEmbeddings(instances) if len(instances) > 1 else instances[0]
     return Chroma(collection_name="reports", embedding_function=embeddings, persist_directory=CHROMA_DIR)
 
@@ -127,9 +127,9 @@ def _parse_filename(filename: str) -> tuple[str, str]:
 def add_to_chroma(documents: list[Document], ids: list[str], vectorstore: Chroma, delay: int) -> None:
     total_batches = (len(documents) + EMBED_BATCH_SIZE - 1) // EMBED_BATCH_SIZE
     for i in range(0, len(documents), EMBED_BATCH_SIZE):
-        batch_num  = i // EMBED_BATCH_SIZE + 1
+        batch_num = i // EMBED_BATCH_SIZE + 1
         batch_docs = documents[i : i + EMBED_BATCH_SIZE]
-        batch_ids  = ids[i : i + EMBED_BATCH_SIZE]
+        batch_ids = ids[i : i + EMBED_BATCH_SIZE]
         _log(f"  Batch {batch_num}/{total_batches}: embedding {len(batch_docs)} chunks...")
         vectorstore.add_documents(documents=batch_docs, ids=batch_ids)
         _log(f"  Batch {batch_num} done.")
@@ -155,20 +155,20 @@ def main() -> None:
         return (not t.get("title") and not t.get("headers") and not t.get("rows"))
 
     non_empty = [t for t in tables if not _is_empty(t)]
-    skipped   = len(tables) - len(non_empty)
+    skipped = len(tables) - len(non_empty)
     if skipped:
         _log(f"Filtered out {skipped} empty table shell(s) (no title/headers/rows)")
 
     # Skip tables already in ChromaDB
     existing = set(vectorstore._collection.get(include=[])["ids"])
-    pending  = [t for t in non_empty if _chunk_id(t) not in existing]
+    pending = [t for t in non_empty if _chunk_id(t) not in existing]
     _log(f"Already embedded: {len(non_empty) - len(pending)}  |  To embed: {len(pending)}")
 
     if not pending:
         _log("Nothing to do.")
         return
 
-    key_count   = sum(1 for k in [os.getenv("JINA_API_KEY"), os.getenv("JINA_API_KEY_1")] if k)
+    key_count = sum(1 for k in [os.getenv("JINA_API_KEY"), os.getenv("JINA_API_KEY_1")] if k)
     batch_delay = EMBED_BATCH_DELAY // max(key_count, 1)
 
     documents: list[Document] = []
@@ -178,12 +178,12 @@ def main() -> None:
         documents.append(Document(
             page_content=table_to_text(t),
             metadata={
-                "source":      t["source"],
-                "page":        t["page"],
-                "company":     company,
-                "fy":          fy,
+                "source": t["source"],
+                "page": t["page"],
+                "company": company,
+                "fy": fy,
                 "chunk_index": t["table_index"],
-                "title":       t.get("title", ""),
+                "title": t.get("title", ""),
                 "source_type": "vision",
             },
         ))

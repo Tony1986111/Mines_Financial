@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 import re
-
 from memory.semantic import search_conclusions, CACHE_THRESHOLD
-from state import MainState
+from state import MainState, Source
 
 # Entity extraction constants
 
@@ -16,15 +14,15 @@ _FY_RE = re.compile(r'\bFY20\d{2}\b', re.IGNORECASE)
 
 # Full-name/alias to ticker mapping for cases where users write company names.
 _ALIASES: dict[str, str] = {
-    "fortescue":         "FMG",
-    "rio tinto":         "RIO",
+    "fortescue": "FMG",
+    "rio tinto": "RIO",
     "mineral resources": "MIN",
-    "northern star":     "NST",
+    "northern star": "NST",
 }
 
 # Maximum number of prior messages to scan (6 messages is roughly 3 recent turns).
 _CONTEXT_MESSAGES = 6
-
+ 
 
 # Helper functions
 
@@ -46,7 +44,6 @@ def _extract_entities(text: str) -> tuple[set[str], set[str]]:
     fys: set[str] = {m.upper() for m in _FY_RE.findall(text)}
 
     return tickers, fys
-
 
 def _enrich_query(query: str, messages: list) -> str:
     """Fill missing company or fiscal-year context from recent message history.
@@ -112,7 +109,7 @@ def memory_node(state: MainState) -> dict:
         fill missing entities in follow-up questions so queries like
         "What about their dividends?" do not lose company/fiscal-year context.
     """
-    query    = state.get("query", "").strip()
+    query = state.get("query", "").strip()
     messages = state.get("messages") or []
 
     if not query:
@@ -121,6 +118,8 @@ def memory_node(state: MainState) -> dict:
     # Layer 1 / 2: semantic cache lookup
     # Returns (answer, sources, score): score >= CACHE_THRESHOLD -> L1 direct hit,
     # score >= CONTEXT_THRESHOLD -> L2 supplementary context only.
+    cached_answer: str
+    cached_sources: list[Source]
     cached_answer, cached_sources, score = search_conclusions(query)
     cache_hit = score >= CACHE_THRESHOLD
 
@@ -129,8 +128,8 @@ def memory_node(state: MainState) -> dict:
 
     out: dict = {
         "semantic_context": cached_answer,
-        "cache_hit":        cache_hit,
-        "sources":          cached_sources if cache_hit else [],
+        "cache_hit": cache_hit,
+        "sources": cached_sources if cache_hit else [],
     }
 
     # Write query back to state only when it actually changed.

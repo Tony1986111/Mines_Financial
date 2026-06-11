@@ -124,7 +124,7 @@ def test_threshold_boundary_exactly_one_above():
     """The threshold is a no-op, while one extra message triggers compression."""
     # Setup: compare histories at the threshold and one message above it.
     at_threshold = _make_messages(COMPRESS_THRESHOLD)
-    one_above    = _make_messages(COMPRESS_THRESHOLD + 1)
+    one_above = _make_messages(COMPRESS_THRESHOLD + 1)
 
     # Assertion: exactly at the threshold remains a no-op.
     assert compress_context_node({"messages": at_threshold}) == {}

@@ -27,15 +27,15 @@ from step_3_prompts import build_vision_messages
 
 load_dotenv()
 
-_ROOT           = Path(__file__).parent.parent
-FILTERED_PAGES  = Path("ingest/filtered_pages.json")
-OUT_JSON        = Path("ingest/output_vison.json")
+_ROOT = Path(__file__).parent.parent
+FILTERED_PAGES = Path("ingest/filtered_pages.json")
+OUT_JSON = Path("ingest/output_vison.json")
 CHECKPOINT_PATH = Path("ingest/step_3_checkpoint.jsonl")
 
-VISION_MODEL      = "gemini-2.5-flash-lite"
-VISION_ZOOM       = 2.0
+VISION_MODEL = "gemini-2.5-flash-lite"
+VISION_ZOOM = 2.0
 VISION_MAX_TOKENS = 12000
-VISION_WORKERS    = 32
+VISION_WORKERS = 32
 
 _json_lock = threading.Lock()
 _ckpt_lock = threading.Lock()
@@ -133,11 +133,11 @@ def _extract_json(text: str) -> list:
         depth = 0
         for j in range(i, len(text)):
             ch = text[j]
-            if escape_next:        escape_next = False
+            if escape_next: escape_next = False
             elif ch == '\\' and in_str: escape_next = True
-            elif ch == '"':        in_str = not in_str
+            elif ch == '"': in_str = not in_str
             elif not in_str:
-                if ch == '[':   depth += 1
+                if ch == '[': depth += 1
                 elif ch == ']':
                     depth -= 1
                     if depth == 0:
@@ -158,9 +158,9 @@ def call_vision(img_bytes: bytes, source: str, page_num: int, client: OpenAI) ->
     raw_text = ""
     for attempt in range(3):
         try:
-            resp     = client.chat.completions.create(model=VISION_MODEL, max_tokens=VISION_MAX_TOKENS, messages=messages)
+            resp = client.chat.completions.create(model=VISION_MODEL, max_tokens=VISION_MAX_TOKENS, messages=messages)
             raw_text = (resp.choices[0].message.content or "").strip()
-            tables   = _extract_json(raw_text)
+            tables = _extract_json(raw_text)
             return [
                 {"source": source, "page": page_num, "table_index": i,
                  "title": t.get("title", ""), "header_rows": len(t.get("headers", [])) or 1,
@@ -193,9 +193,9 @@ def process_pdf(source: str, pages: list[int], client: OpenAI, done_ids: set[str
         return 0
 
     # Pass 1 (serial): render pages to PNG bytes — fitz is not thread-safe
-    doc        = fitz.open(str(pdf_path))
+    doc = fitz.open(str(pdf_path))
     to_process = []
-    skipped    = 0
+    skipped = 0
     for page_num in pages:
         if _page_id(source, page_num) in done_ids:
             skipped += 1
@@ -261,16 +261,16 @@ def main() -> None:
         sys.exit(1)
 
     reports_dir = _get_reports_dir(args.reports_dir)
-    targets     = load_targets()
-    done_ids    = load_checkpoint()
-    client      = _make_client()
-    provider    = "Gemini" if os.getenv("GOOGLE_API_KEY") else "OpenAI"
+    targets = load_targets()
+    done_ids = load_checkpoint()
+    client = _make_client()
+    provider = "Gemini" if os.getenv("GOOGLE_API_KEY") else "OpenAI"
 
     total_pages = sum(len(v) for v in targets.values())
-    pending     = sum(1 for src, pages in targets.items() for p in pages if _page_id(src, p) not in done_ids)
+    pending = sum(1 for src, pages in targets.items() for p in pages if _page_id(src, p) not in done_ids)
     _log(f"{total_pages} pages across {len(targets)} PDFs  |  pending: {pending}  |  {VISION_MODEL} via {provider}")
 
-    sources      = list(targets.items())
+    sources = list(targets.items())
     total_tables = 0
     for source, pages in sources:
         pending_pages = [p for p in pages if _page_id(source, p) not in done_ids]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from state import RetrievalState
+from state import RetrievalState, RetrievedDoc
 from utils.llm_large import llm_large as llm
 
 _SYSTEM_PROMPT = """You are a financial analyst specialising in ASX mining companies.
@@ -16,23 +16,23 @@ _SYSTEM_PROMPT = """You are a financial analyst specialising in ASX mining compa
     - Match the language of your answer to the language of the user's question."""
 
 
-def _format_docs(docs: list[dict]) -> str:
+def _format_docs(docs: list[RetrievedDoc]) -> str:
     parts = []
     for i, doc in enumerate(docs, 1):
-        company     = doc.get("company", "Unknown")
-        fy          = doc.get("fy", "")
-        page        = doc.get("page", "")
+        company = doc.get("company", "Unknown")
+        fy = doc.get("fy", "")
+        page = doc.get("page", "")
         source_type = doc.get("source_type", "text")
-        content     = doc.get("content", "").strip()
-        label       = " [table]" if source_type == "vision" else ""
-        header      = f"[{i}] {company}" + (f" {fy}" if fy else "") + (f", p.{page}" if page != "" else "") + label
+        content = doc.get("content", "").strip()
+        label = " [table]" if source_type == "vision" else ""
+        header = f"[{i}] {company}" + (f" {fy}" if fy else "") + (f", p.{page}" if page != "" else "") + label
         parts.append(f"{header}\n{content}")
     return "\n\n".join(parts)
 
 
 def synthesize_node(state: RetrievalState) -> dict:
-    docs             = state.get("graded_docs") or []
-    query            = state.get("query", "").strip()
+    docs: list[RetrievedDoc] = state.get("graded_docs") or []
+    query = state.get("query", "").strip()
     semantic_context = state.get("semantic_context", "").strip()
 
     if not docs or not query:

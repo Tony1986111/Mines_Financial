@@ -40,10 +40,6 @@ def search_mining_news(query: str) -> str:
 # ── Node ───────────────────────────────────────────────────────────────────────
 
 def news_agent_node(state: MainState) -> dict:
-    query = state.get("query", "").strip()
-    if not query:
-        return {"news_context": ""}
-
-    # Pass query directly — search_mining_news already adds the "ASX mining" prefix.
+    query = state.get("query", "")
     news = search_mining_news.invoke(query)
     return {"news_context": news}

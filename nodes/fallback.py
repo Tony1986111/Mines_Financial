@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from langchain_core.messages import AIMessage
 
-from state import MainState
+from state import MainState, RetrievalResult, RetrievedDoc
 
 _GUIDANCE = """\
 
@@ -28,7 +28,8 @@ def _detect_reason(state: MainState) -> str:
 
     if not aggregated:
         # Case 1: empty — distinguish whether docs were at least retrieved
-        docs = (state.get("retrieval_result") or {}).get("documents") or []
+        retrieval_result: RetrievalResult = state.get("retrieval_result") or {}
+        docs: list[RetrievedDoc] = retrieval_result.get("documents") or []
         if docs:
             return "Relevant documents were retrieved but could not be synthesised into an answer."
         return "No relevant information was found in the annual reports or recent news."
@@ -43,10 +44,10 @@ def fallback_node(state: MainState) -> dict:
     Fallback routes directly to END (bypasses answer_node), so this node sets
     both final_answer and AIMessage to keep the conversation history intact.
     """
-    reason  = _detect_reason(state)
+    reason = _detect_reason(state)
     message = reason + _GUIDANCE
 
     return {
         "final_answer": message,
-        "messages":     [AIMessage(content=message)],
+        "messages": [AIMessage(content=message)],
     }
