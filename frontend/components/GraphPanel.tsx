@@ -120,22 +120,6 @@ function QueryRewriteDetails({ state }: { state: Record<string, unknown> }) {
   );
 }
 
-function RetrieveCompanyDetails({ state }: { state: Record<string, unknown> }) {
-  const cs = (state.company_status as Record<string, boolean> | undefined) ?? {};
-  const entries = Object.entries(cs);
-  if (entries.length === 0) return <p className="text-[10px] italic text-[#7a9ab8] dark:text-[#3d5878] mt-2">pending for company name</p>;
-  return (
-    <div className="mt-2 text-xs font-mono bg-[#eef4fb] dark:bg-[#060c14] border border-[#cddcea] dark:border-[#162840] rounded-lg p-3 space-y-1">
-      {entries.map(([company, found]) => (
-        <div key={company} className="flex items-center gap-2">
-          <span className={found ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400"}>{found ? "✓" : "✗"}</span>
-          <span className="text-[#0a1e38] dark:text-[#c4d8f0]">{company}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── Node status indicator ─────────────────────────────────────────────────────
 
 const SUBGRAPH_NODES = new Set([
@@ -143,7 +127,7 @@ const SUBGRAPH_NODES = new Set([
 ]);
 
 // Nodes that carry state but should not be expandable.
-const NO_EXPAND_NODES = new Set(["synthesize"]);
+const NO_EXPAND_NODES = new Set(["synthesize", "retrieve_company"]);
 
 const NODE_LABELS: Record<string, string> = {
   compress_context: "Compress Context",
@@ -282,8 +266,6 @@ function NodeRow({ node, status, state }: NodeRowProps) {
         <div className="px-3 pb-2">
           {node === "query_rewrite" ? (
             <QueryRewriteDetails state={state!} />
-          ) : node === "retrieve_company" ? (
-            <RetrieveCompanyDetails state={state!} />
           ) : (
             <StateViewer state={state!} />
           )}
@@ -291,6 +273,28 @@ function NodeRow({ node, status, state }: NodeRowProps) {
       )}
     </div>
   );
+}
+
+// ── Deduplication ────────────────────────────────────────────────────────────
+// retrieval_agent intentionally has two entries (running + done); all others
+// should show at most one entry per node, at the position of first appearance,
+// with the state from the last occurrence (handles retry passes).
+const MULTI_ENTRY_NODES = new Set(["retrieval_agent"]);
+
+function dedupEvents(events: GraphNodeEvent[]): GraphNodeEvent[] {
+  const seen = new Set<string>();
+  return events
+    .filter((e) => {
+      if (e.node === "__turn__" || MULTI_ENTRY_NODES.has(e.node)) return true;
+      if (seen.has(e.node)) return false;
+      seen.add(e.node);
+      return true;
+    })
+    .map((e) => {
+      if (e.node === "__turn__" || MULTI_ENTRY_NODES.has(e.node)) return e;
+      const last = [...events].reverse().find((ev) => ev.node === e.node);
+      return last ?? e;
+    });
 }
 
 // ── GraphPanel ────────────────────────────────────────────────────────────────
@@ -370,7 +374,7 @@ export default function GraphPanel({ events, visible, width, onToggle }: GraphPa
             </p>
           ) : (
             <div className="space-y-0.5 px-1">
-              {events.map((e, i) =>
+              {dedupEvents(events).map((e, i) =>
                 e.node === "__turn__" ? (
                   <div key={i} className="flex items-center gap-2 px-3 py-1.5 my-1">
                     <div className="flex-1 h-px bg-[#cddcea] dark:bg-[#162840]" />
