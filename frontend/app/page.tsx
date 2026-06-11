@@ -169,7 +169,6 @@ function nodeEventToCard(
   // retry pass stacks its own cards instead of overwriting the previous pass's.
 
   if (node === "query_rewrite") {
-    if (status === "running") return null;
     const callIdx = (state?._call_idx as number | undefined) ?? 0;
     const isRetry = callIdx > 0;
     if (isRetry) {
