@@ -79,6 +79,7 @@ function nodeEventToCard(
       // retrieval_agent and news_agent are pre-announced by retrieve_decision done;
       // returning null here prevents node_start from moving that card to the end.
       calculator_agent:  "Calculating financial metrics…",
+      grade_docs:        "Grading retrieved documents…",
       answer:            "Generating answer…",
     };
     const text = texts[node];
@@ -193,7 +194,6 @@ function nodeEventToCard(
   }
 
   if (node === "grade_docs") {
-    if (status === "running") return { id: "grade_docs", status: "running", variant: "status", text: "Grading retrieved documents…" };
     const callIdx = (state?._call_idx as number | undefined) ?? 0;
     const retrieved = (state?.retrieved_count as number | undefined) ?? 0;
     const graded = (state?.graded_docs as unknown[] | undefined) ?? [];
@@ -207,13 +207,11 @@ function nodeEventToCard(
   }
 
   if (node === "synthesize") {
-    if (status === "running") return null;
     const callIdx = (state?._call_idx as number | undefined) ?? 0;
     return { id: `synthesize_${callIdx}`, status: "done", variant: "result", icon: "✍️", title: "Answer drafted" };
   }
 
   if (node === "grade_answer") {
-    if (status === "running") return null;
     const callIdx = (state?._call_idx as number | undefined) ?? 0;
     const grounded = state?.grounded as string | undefined;
     const hints = (state?.unsupported_hints as string[] | undefined) ?? [];
