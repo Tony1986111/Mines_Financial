@@ -22,7 +22,7 @@ _ALIASES: dict[str, str] = {
 
 # Maximum number of prior messages to scan (6 messages is roughly 3 recent turns).
 _CONTEXT_MESSAGES = 6
- 
+    
 
 # Helper functions
 
@@ -118,13 +118,12 @@ def memory_node(state: MainState) -> dict:
     # Layer 1 / 2: semantic cache lookup
     # Returns (answer, sources, score): score >= CACHE_THRESHOLD -> L1 direct hit,
     # score >= CONTEXT_THRESHOLD -> L2 supplementary context only.
-    cached_answer: str
-    cached_sources: list[Source]
-    cached_answer, cached_sources, score = search_conclusions(query)
-    cache_hit = score >= CACHE_THRESHOLD
-
     # Layer 3: conversation entity enrichment
     enriched_query = _enrich_query(query, messages)
+    cached_answer: str
+    cached_sources: list[Source]
+    cached_answer, cached_sources, score = search_conclusions(enriched_query)
+    cache_hit = score >= CACHE_THRESHOLD
 
     out: dict = {
         "semantic_context": cached_answer,

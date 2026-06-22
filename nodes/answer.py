@@ -14,57 +14,56 @@ from utils.llm_large import llm_large as llm
 # that some document loaders embed at the start of page_content.
 _METADATA_LINE_RE = re.compile(r'^(?:Source:[^\n]*\n?)+', re.IGNORECASE)
 
-
+# build preview for frontend
 def _build_preview(doc: dict, max_chars: int = 250) -> str:
     content = (doc.get("content") or "").strip()
     content = _METADATA_LINE_RE.sub("", content).strip()
     return content[:max_chars]
 
 
-_SYSTEM_PROMPT = """You are a financial analyst assistant for an ASX mining company chatbot.
+_SYSTEM_PROMPT = """
+    You are a financial analyst assistant for an ASX mining company chatbot.
+    You will receive the user's question and a combined context that may include:
+    - 【Annual Report Data】: synthesised excerpts from annual reports
+    - 【Recent News】: recent web search snippets about the companies
+    - 【Calculation Result】: arithmetic result computed from the above data
 
-You will receive the user's question and a combined context that may include:
-  - 【Annual Report Data】: synthesised excerpts from annual reports
-  - 【Recent News】: recent web search snippets about the companies
-  - 【Calculation Result】: arithmetic result computed from the above data
-
-Your task:
-  1. Synthesise all available sections into one coherent, well-structured answer.
-  2. Insert citation markers [N] immediately after each fact drawn from an annual report,
-     where N matches the source list provided below.
-  3. Reference news and calculation results naturally within the answer (no citation needed).
-  4. If sections contradict each other, prefer annual report data and note the discrepancy.
-  5. Be concise and factual. Do not repeat the section headers in your answer."""
+    Your task:
+    1. Synthesise all available sections into one coherent, well-structured answer.
+    2. Insert citation markers [N] immediately after each fact drawn from an annual report,
+        where N matches the source list provided below.
+    3. Reference news and calculation results naturally within the answer (no citation needed).
+    4. If sections contradict each other, prefer annual report data and note the discrepancy.
+    5. Be concise and factual. Do not repeat the section headers in your answer.
+"""
 
 _CITATION_INSTRUCTIONS = """
+    Citation rules — follow exactly:
+    - Place [N] immediately after the claim it supports, before any punctuation.
+    - Multiple sources for one claim: [1,3] — comma-separated, no spaces inside brackets.
+    - Omit citation markers for general knowledge or your own reasoning.
+    - Only use numbers that appear in the source list below. Never invent a number.
 
-Citation rules — follow exactly:
-  - Place [N] immediately after the claim it supports, before any punctuation.
-  - Multiple sources for one claim: [1,3] — comma-separated, no spaces inside brackets.
-  - Omit citation markers for general knowledge or your own reasoning.
-  - Only use numbers that appear in the source list below. Never invent a number.
+    Available sources:
+    {sources}
 
-Available sources:
-{sources}
-
-Examples:
-  Single source:
+    Examples:
+    Single source:
     "BHP's FY2024 revenue reached A$53.6 billion [1], an 8% increase year-on-year."
 
-  Multiple sources supporting one claim:
+    Multiple sources supporting one claim:
     "Both BHP and RIO grew dividends in FY2024 [1,3], reflecting strong free cash flow [2]."
 
-  Mixing cited and uncited facts:
+    Mixing cited and uncited facts:
     "Iron ore remains Australia's largest export commodity. BHP's production volume
-     rose 4% to 260 Mt [1], while FMG shipped 192 Mt [4]." """
+    rose 4% to 260 Mt [1], while FMG shipped 192 Mt [4]." 
+"""
 
 _CHART_INSTRUCTIONS = """
-
-Available charts (insert placeholder on its own line after the paragraph discussing that metric):
-{chart_lines}
-
-Only use exact names listed above. Do not invent chart names."""
-
+    Available charts (insert placeholder on its own line after the paragraph discussing that metric):
+    {chart_lines}
+    Only use exact names listed above. Do not invent chart names.
+"""
 
 def _build_system_prompt(
     prompt_sources: str,
