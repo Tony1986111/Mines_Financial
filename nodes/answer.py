@@ -5,14 +5,22 @@ import re
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from memory.semantic import save_conclusion
-from state import ChartData, MainState, RetrievalResult, RetrievedDoc, Source, UnsupportedClaim
+from state import (
+    ChartData,
+    MainState,
+    RetrievalResult,
+    RetrievedDoc,
+    Source,
+    UnsupportedClaim,
+)
 from utils.chart import extract_chart_data
 from utils.citation import apply_superscripts, build_prompt_sources, filter_and_renumber
 from utils.llm_large import llm_large as llm
 
 # Matches leading metadata lines like "Source: FMG_FY2023.pdf | Page: 133"
 # that some document loaders embed at the start of page_content.
-_METADATA_LINE_RE = re.compile(r'^(?:Source:[^\n]*\n?)+', re.IGNORECASE)
+_METADATA_LINE_RE = re.compile(r"^(?:Source:[^\n]*\n?)+", re.IGNORECASE)
+
 
 # build preview for frontend
 def _build_preview(doc: dict, max_chars: int = 250) -> str:
@@ -64,6 +72,7 @@ _CHART_INSTRUCTIONS = """
     {chart_lines}
     Only use exact names listed above. Do not invent chart names.
 """
+
 
 def _build_system_prompt(
     prompt_sources: str,
@@ -134,10 +143,16 @@ def answer_node(state: MainState) -> dict:
     # Falls back to raw aggregated_context if the LLM call fails.
     if aggregated and query:
         try:
-            response = llm.invoke([
-                SystemMessage(content=_build_system_prompt(prompt_sources, chart_map)),
-                HumanMessage(content=f"Question: {query}\n\nContext:\n{aggregated}"),
-            ])
+            response = llm.invoke(
+                [
+                    SystemMessage(
+                        content=_build_system_prompt(prompt_sources, chart_map)
+                    ),
+                    HumanMessage(
+                        content=f"Question: {query}\n\nContext:\n{aggregated}"
+                    ),
+                ]
+            )
             final_answer = response.content.strip()
         except Exception:
             final_answer = aggregated
@@ -146,7 +161,9 @@ def answer_node(state: MainState) -> dict:
 
     # Remove uncited sources and renumber [N] markers before converting to HTML.
     # Must run on plain [N] text — apply_superscripts would break the regex.
-    final_answer, sources_section, cited_docs, cited_labels = filter_and_renumber(final_answer, docs)
+    final_answer, sources_section, cited_docs, cited_labels = filter_and_renumber(
+        final_answer, docs
+    )
 
     # Convert [N] → <sup class="citation" data-n="N">[N]</sup>.
     final_answer = apply_superscripts(final_answer, cited_docs)
@@ -167,7 +184,11 @@ def answer_node(state: MainState) -> dict:
 
     # Persist to semantic memory BEFORE appending confidence note,
     # so cached answers stay clean.
-    if final_answer and retrieval_result.get("grade", "pass") == "pass" and grounded != "no":
+    if (
+        final_answer
+        and retrieval_result.get("grade", "pass") == "pass"
+        and grounded != "no"
+    ):
         companies = list({d.get("company", "") for d in docs if d.get("company")})
         fys = list({d.get("fy", "") for d in docs if d.get("fy")})
         save_conclusion(
@@ -183,10 +204,15 @@ def answer_node(state: MainState) -> dict:
         claims = (unsupported or [])[:3]
 
         if claims:
-            _basis_labels = {"calculation": "calculated from report data", "interpolation": "estimated from report data", "general_knowledge": "from LLM knowledge, but not found in reports"}
+            _basis_labels = {
+                "calculation": "calculated from report data",
+                "interpolation": "estimated from report data",
+                "general_knowledge": "from LLM knowledge, but not found in reports",
+            }
             formatted = "; ".join(
                 f"{c['claim']} ({_basis_labels.get(c.get('basis', ''), c.get('basis', ''))})"
-                if isinstance(c, dict) else c
+                if isinstance(c, dict)
+                else c
                 for c in claims
             )
             note = f"⚠️ Some claims in this answer could not be fully verified against the retrieved documents: {formatted}."

@@ -7,10 +7,10 @@ from state import MainState, Source
 
 # Match the five known company tickers. \b is a word boundary, which prevents
 # false positives such as "BHPX".
-_TICKER_RE = re.compile(r'\b(BHP|RIO|FMG|MIN|NST)\b')
+_TICKER_RE = re.compile(r"\b(BHP|RIO|FMG|MIN|NST)\b")
 
 # Match fiscal year format FY20XX. re.IGNORECASE also matches values like fy2024.
-_FY_RE = re.compile(r'\bFY20\d{2}\b', re.IGNORECASE)
+_FY_RE = re.compile(r"\bFY20\d{2}\b", re.IGNORECASE)
 
 # Full-name/alias to ticker mapping for cases where users write company names.
 _ALIASES: dict[str, str] = {
@@ -22,9 +22,10 @@ _ALIASES: dict[str, str] = {
 
 # Maximum number of prior messages to scan (6 messages is roughly 3 recent turns).
 _CONTEXT_MESSAGES = 6
-    
+
 
 # Helper functions
+
 
 def _extract_entities(text: str) -> tuple[set[str], set[str]]:
     """Extract company ticker and fiscal year sets from text.
@@ -44,6 +45,7 @@ def _extract_entities(text: str) -> tuple[set[str], set[str]]:
     fys: set[str] = {m.upper() for m in _FY_RE.findall(text)}
 
     return tickers, fys
+
 
 def _enrich_query(query: str, messages: list) -> str:
     """Fill missing company or fiscal-year context from recent message history.
@@ -69,7 +71,7 @@ def _enrich_query(query: str, messages: list) -> str:
     # Take the latest _CONTEXT_MESSAGES history messages, excluding the current
     # query message. messages[-7:-1] means from the 7th-last item through the
     # 2nd-last item, excluding the final item.
-    recent = messages[-(_CONTEXT_MESSAGES + 1):-1] if len(messages) > 1 else []
+    recent = messages[-(_CONTEXT_MESSAGES + 1) : -1] if len(messages) > 1 else []
 
     context_companies: set[str] = set()
     context_fys: set[str] = set()
@@ -87,7 +89,9 @@ def _enrich_query(query: str, messages: list) -> str:
     # Add only the parts missing from the current query.
     hints: list[str] = []
     if not companies_in_q and context_companies:
-        hints.extend(sorted(context_companies))   # Stable order keeps tests deterministic.
+        hints.extend(
+            sorted(context_companies)
+        )  # Stable order keeps tests deterministic.
     if not fys_in_q and context_fys:
         hints.extend(sorted(context_fys))
 
@@ -97,6 +101,7 @@ def _enrich_query(query: str, messages: list) -> str:
 
 
 # Node entry point
+
 
 def memory_node(state: MainState) -> dict:
     """Read memory layers and inject context before the main pipeline starts.

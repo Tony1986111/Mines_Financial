@@ -4,9 +4,10 @@ The key behavioral guarantee is that _enrich_query runs before search_conclusion
 so follow-up queries like "What about their dividends?" are enriched with context
 from message history (e.g., "[BHP, FY2024]") before the semantic cache lookup.
 """
+
 from __future__ import annotations
 
-from unittest.mock import patch, call
+from unittest.mock import patch
 from langchain_core.messages import HumanMessage, AIMessage
 
 from nodes.memory import memory_node
@@ -36,7 +37,7 @@ class TestMemoryNodeEnrichmentBeforeCacheLookup:
             return "", [], 0.0
 
         with patch("nodes.memory.search_conclusions", side_effect=fake_search):
-            result = memory_node(state)
+            memory_node(state)
 
         assert len(captured) == 1, "search_conclusions should be called exactly once"
         assert captured[0] != follow_up, (
@@ -57,7 +58,9 @@ class TestMemoryNodeEnrichmentBeforeCacheLookup:
         with patch("nodes.memory.search_conclusions", return_value=("", [], 0.0)):
             result = memory_node(state)
 
-        assert "query" in result, "state must contain updated query when enrichment changed it"
+        assert "query" in result, (
+            "state must contain updated query when enrichment changed it"
+        )
         assert "RIO" in result["query"]
         assert "FY2023" in result["query"]
 
@@ -99,8 +102,12 @@ class TestMemoryNodeEnrichmentBeforeCacheLookup:
 
         assert result["cache_hit"] is True
         assert result["semantic_context"] == cached_answer
-        assert "FMG" in captured[0], "cache hit used raw query instead of enriched query"
-        assert "FY2024" in captured[0], "cache hit used raw query instead of enriched query"
+        assert "FMG" in captured[0], (
+            "cache hit used raw query instead of enriched query"
+        )
+        assert "FY2024" in captured[0], (
+            "cache hit used raw query instead of enriched query"
+        )
 
     def test_empty_query_returns_early(self):
         """memory_node must return an empty dict without calling search when query is blank."""
