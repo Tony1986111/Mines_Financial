@@ -14,7 +14,6 @@ _INLINE_CITATION_RE = re.compile(r'\[(\d+(?:,\d+)*)\]')
 
 def _build_entries_detail(docs: list[RetrievedDoc]) -> tuple[list[str], list[RetrievedDoc]]:
     """Return (entries, rep_docs) where rep_docs[i] is the first doc for entries[i].
-
     Dedup key is (company, fy, page). Includes section name when available.
     """
     seen: set[tuple] = set()
@@ -67,8 +66,6 @@ def build_prompt_sources(docs: list[RetrievedDoc]) -> str:
         return ""
     # No "Sources:" header — this string goes into the LLM prompt, not the answer
     return "\n".join(f"[{i}] {line}" for i, line in enumerate(entries, 1))
-
-
 
 def filter_and_renumber(
     answer_body: str, docs: list[RetrievedDoc]
@@ -123,7 +120,6 @@ def filter_and_renumber(
     sources_section = f"Sources:\n{numbered}"
 
     return renumbered_body, sources_section, cited_docs, cited_labels
-
 
 def apply_superscripts(answer_body: str, cited_docs: list[RetrievedDoc] | None = None) -> str:
     """Convert inline [N] citation markers to HTML superscript tags.

@@ -13,7 +13,7 @@ _SYSTEM_PROMPT = """You are a financial analyst specialising in ASX mining compa
     - CRITICAL: Each citation [N] must only support a claim about the SAME company whose annual report that document belongs to. The company name is shown in every excerpt header (e.g. "[3] FMG FY2024, p.39"). Never use a BHP document to support an FMG or RIO claim, and never use an FMG document to support an NST claim.
     - CRITICAL: If you cannot find a specific company's data in the provided excerpts, you MUST explicitly state "[Company] FY20XX [metric]: data not found in provided documents." Do NOT estimate, infer, or borrow numbers from another company's documents.
     - If excerpts cover multiple companies, compare them side-by-side.
-    - Match the language of your answer to the language of the user's question."""
+"""
 
 
 def _format_docs(docs: list[RetrievedDoc]) -> str:
@@ -26,6 +26,7 @@ def _format_docs(docs: list[RetrievedDoc]) -> str:
         content = doc.get("content", "").strip()
         label = " [table]" if source_type == "vision" else ""
         header = f"[{i}] {company}" + (f" {fy}" if fy else "") + (f", p.{page}" if page != "" else "") + label
+        
         parts.append(f"{header}\n{content}")
     return "\n\n".join(parts)
 

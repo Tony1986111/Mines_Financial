@@ -126,7 +126,6 @@ def build_mock_output(case: dict[str, Any]) -> dict[str, Any]:
 
     if expected.get("tool_expected"):
         output["tool_used"] = expected["tool_expected"]
-        output["calc_result"] = "Mock calculation result"
 
     return output
 

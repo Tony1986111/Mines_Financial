@@ -95,7 +95,7 @@ def test_aggregate_missing_answer_draft_key_handled_gracefully():
 
 # Verify that None source values are safely skipped.
 def test_aggregate_none_values_handled_gracefully():
-    state = {"retrieval_result": None, "news_context": None, "calc_result": None}
+    state = {"retrieval_result": None, "news_context": None}
 
     result = aggregate_node(state)
     assert result["aggregated_context"] == ""

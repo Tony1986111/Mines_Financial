@@ -4,8 +4,7 @@ from langchain_core.messages import AIMessage
 
 from state import MainState, RetrievalResult, RetrievedDoc
 
-_GUIDANCE = """\
-
+_GUIDANCE = """
 Available data covers:
   • Companies   : BHP, Rio Tinto (RIO), Fortescue (FMG), Northern Star (NST), Mineral Resources (MIN)
   • Fiscal years : FY2023, FY2024, FY2025

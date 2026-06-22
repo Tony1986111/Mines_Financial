@@ -22,7 +22,7 @@ _SYSTEM_PROMPT = """You are a precise financial calculator for ASX mining compan
 
 _agent = create_react_agent(
     llm,
-    [calculate_growth_rate, calculate_ratio, calculate_average, calculate],
+    tools = [calculate_growth_rate, calculate_ratio, calculate_average, calculate],
     prompt=_SYSTEM_PROMPT,
 )
 
@@ -37,4 +37,4 @@ def calculator_agent_node(state: MainState) -> dict:
     calc_result = result["messages"][-1].content
     updated = f"{context}\n\n【Calculation Result】\n{calc_result}".strip()
 
-    return {"calc_result": calc_result, "aggregated_context": updated}
+    return {"aggregated_context": updated}

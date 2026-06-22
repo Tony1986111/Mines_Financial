@@ -79,11 +79,6 @@ def evaluate_calculation_output(case: dict[str, Any], output: dict[str, Any]) ->
     if actual_tool and actual_tool != expected["tool_expected"]:
         failures.append(f"tool_used: expected {expected['tool_expected']!r}, got {actual_tool!r}")
 
-    # If the output contains a calculation result, it must be non-empty (whitespace doesn't count).
-    calc_result = output.get("calc_result")
-    if calc_result is not None and not str(calc_result).strip():
-        failures.append("calc_result: expected non-empty calculation result")
-
     return failures
 
 

@@ -8,16 +8,10 @@ from utils.llm import llm
 _DOC_PREVIEW_CHARS = 500
 _SYSTEM_PROMPT = """\
     You are grading retrieved document chunks for relevance to a financial query.
-
-    A document is RELEVANT if it contains specific financial figures, metrics, or \
-    facts (revenue, profit, EBITDA, capex, dividends, production volumes, etc.) \
-    that could help answer the query.
-
-    A document is NOT RELEVANT if it covers unrelated topics such as corporate \
-    governance, board composition, ESG reporting, risk factor boilerplate, or \
-    auditor's reports — unless the query specifically asks about those topics.
-
-    Return only the indices of relevant documents."""
+    A document is RELEVANT if it contains specific financial figures, metrics, or facts (revenue, profit, EBITDA, capex, dividends, production volumes, etc.) that could help answer the query.
+    A document is NOT RELEVANT if it covers unrelated topics such as corporate governance, board composition, ESG reporting, risk factor boilerplate, or auditor's reports — unless the query specifically asks about those topics.
+    Return only the indices of relevant documents.
+"""
 
 
 class _GradingResult(BaseModel):

@@ -43,10 +43,12 @@ def _make_sends(state: MainState) -> list[Send]:
 def route_retrieve_decision(state: MainState) -> str | list[Send]:
     if state.get("is_out_of_scope", False):
         return "answer"
+
     if state.get("needs_retrieval") or state.get("needs_news"):
         if state.get("needs_clarification", False):
             return "clarify"
         return _make_sends(state)
+
     return "guardrails"
 
 

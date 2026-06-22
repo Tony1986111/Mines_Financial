@@ -50,7 +50,8 @@ _SYSTEM_PROMPT = """\
     Good: "RIO FY2025 revenue", "BHP FY2024 EBITDA", "FMG dividend yield FY2023"
     Bad:  "Rio Tinto FY2025 consolidated sales revenue was US$57.6 billion"
 
-    Return an empty list if every fact in the answer is supported by the source documents."""
+    Set unsupported to an empty list if every fact in the answer is supported by the source documents.
+"""
 
 
 class _UnsupportedClaim(BaseModel):
@@ -146,6 +147,8 @@ def grade_answer_node(state: RetrievalState) -> dict:
         n = len(unsupported)
         grounded = "yes" if n == 0 else ("partial" if n <= 3 else "no")
 
+    # RetrievalResult is a nested dict with no reducer — LangGraph replaces it whole,
+    # so every field must be written explicitly to avoid data loss.
     retrieval_result: RetrievalResult = {
         "documents": graded_docs,
         "answer_draft": answer_draft,
@@ -166,6 +169,7 @@ def grade_answer_node(state: RetrievalState) -> dict:
     if n >= 2:
         for u in unsupported:
             unsupported_hints.append(u["claim"])
+            
         for hint in unsupported_hints:
             for c in company_status:
                 if c in hint:

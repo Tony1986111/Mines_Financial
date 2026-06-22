@@ -37,16 +37,19 @@ def after_grade_docs(state: RetrievalState) -> str:
 
 def after_grade_answer(state: RetrievalState) -> str:
     company_status = state.get("company_status") or {}
+
     has_missing = False
     for found in company_status.values():
         if not found:
             has_missing = True
             break
+
     needs_retry = (
         state.get("grade") == "fail"
         or has_missing
         or len(state.get("unsupported_hints") or []) >= 2
     )
+    
     if needs_retry and state.get("retry_count", 0) < 2:
         return "query_rewrite"
     return END

@@ -9,8 +9,6 @@ from state import MainState
 
 _tavily = TavilySearch(max_results=5, include_raw_content=False)
 
-
-@tool
 def search_mining_news(query: str) -> str:
     """Search for recent news about ASX mining companies (BHP, RIO, FMG, MIN, NST).
 

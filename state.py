@@ -57,10 +57,11 @@ class CompanyDocsState(TypedDict):
 class RetrievalState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     query: str
+    semantic_context: str
+
     rewritten_query: str
     companies: list[str]
     company_queries: list[CompanyQuery]
-    semantic_context: str
     retrieved_docs: Annotated[list[RetrievedDoc], operator.add]
     graded_docs: list[RetrievedDoc]
     retrieved_count: int
@@ -103,20 +104,23 @@ class MainState(TypedDict):
     needs_retrieval: bool
     needs_news: bool
     needs_clarification: bool
-    clarification_question: str
-    query: str
-    retrieval_result: RetrievalResult
-    calc_result: str
-    news_context: str
-    aggregated_context: str
     needs_calculation: bool
-    unsupported_claims: list[UnsupportedClaim]
-    semantic_context: str
     cache_hit: bool
     guardrails_passed: bool
     is_out_of_scope: bool
+    compressed: bool
+
+    clarification_question: str
+    query: str
+    news_context: str
+    aggregated_context: str
+    semantic_context: str
+    confidence: str
     final_answer: str
+    
     chart_data: list[ChartData]
     sources: list[Source]
-    confidence: str
-    compressed: bool
+    retrieval_result: RetrievalResult
+    unsupported_claims: list[UnsupportedClaim]
+    
+    
