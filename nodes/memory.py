@@ -7,10 +7,10 @@ from state import MainState, Source
 
 # Match the five known company tickers. \b is a word boundary, which prevents
 # false positives such as "BHPX".
-_TICKER_RE = re.compile(r'\b(BHP|RIO|FMG|MIN|NST)\b')
+_TICKER_RE = re.compile(r"\b(BHP|RIO|FMG|MIN|NST)\b")
 
 # Match fiscal year format FY20XX. re.IGNORECASE also matches values like fy2024.
-_FY_RE = re.compile(r'\bFY20\d{2}\b', re.IGNORECASE)
+_FY_RE = re.compile(r"\bFY20\d{2}\b", re.IGNORECASE)
 
 # Full-name/alias to ticker mapping for cases where users write company names.
 _ALIASES: dict[str, str] = {
@@ -22,9 +22,10 @@ _ALIASES: dict[str, str] = {
 
 # Maximum number of prior messages to scan (6 messages is roughly 3 recent turns).
 _CONTEXT_MESSAGES = 6
- 
+
 
 # Helper functions
+
 
 def _extract_entities(text: str) -> tuple[set[str], set[str]]:
     """Extract company ticker and fiscal year sets from text.
@@ -45,6 +46,7 @@ def _extract_entities(text: str) -> tuple[set[str], set[str]]:
 
     return tickers, fys
 
+
 def _enrich_query(query: str, messages: list) -> str:
     """Fill missing company or fiscal-year context from recent message history.
 
@@ -56,8 +58,9 @@ def _enrich_query(query: str, messages: list) -> str:
         Current:  "What about their dividends?"
         Enriched: "What about their dividends? [BHP, FY2024]"
 
-    The enriched query is passed on to query_rewrite_node, which can use the
-    bracketed context to generate the right retrieval keywords.
+    The enriched query is used for the semantic cache lookup in memory_node and
+    is also written back to state for query_rewrite_node to use as retrieval
+    keywords.
     """
     companies_in_q, fys_in_q = _extract_entities(query)
 
@@ -68,7 +71,7 @@ def _enrich_query(query: str, messages: list) -> str:
     # Take the latest _CONTEXT_MESSAGES history messages, excluding the current
     # query message. messages[-7:-1] means from the 7th-last item through the
     # 2nd-last item, excluding the final item.
-    recent = messages[-(_CONTEXT_MESSAGES + 1):-1] if len(messages) > 1 else []
+    recent = messages[-(_CONTEXT_MESSAGES + 1) : -1] if len(messages) > 1 else []
 
     context_companies: set[str] = set()
     context_fys: set[str] = set()
@@ -86,7 +89,9 @@ def _enrich_query(query: str, messages: list) -> str:
     # Add only the parts missing from the current query.
     hints: list[str] = []
     if not companies_in_q and context_companies:
-        hints.extend(sorted(context_companies))   # Stable order keeps tests deterministic.
+        hints.extend(
+            sorted(context_companies)
+        )  # Stable order keeps tests deterministic.
     if not fys_in_q and context_fys:
         hints.extend(sorted(context_fys))
 
@@ -97,17 +102,19 @@ def _enrich_query(query: str, messages: list) -> str:
 
 # Node entry point
 
+
 def memory_node(state: MainState) -> dict:
     """Read memory layers and inject context before the main pipeline starts.
 
-    Layer 1 - semantic memory (ChromaDB):
-        Search historical Q&A with similarity >= 0.85 and inject the result into
-        semantic_context for synthesize_node to use as supplementary reference.
-
-    Layer 2 - conversation entity enrichment:
+    Layer 1 - conversation entity enrichment:
         Extract company names and fiscal years from recent message history, then
         fill missing entities in follow-up questions so queries like
         "What about their dividends?" do not lose company/fiscal-year context.
+
+    Layer 2 - semantic cache lookup (ChromaDB):
+        Search historical Q&A with similarity >= 0.85 and inject the result into
+        semantic_context for synthesize_node to use as supplementary reference.
+        Uses the enriched query so lookup and save share the same embedding.
     """
     query = state.get("query", "").strip()
     messages = state.get("messages") or []
@@ -115,16 +122,15 @@ def memory_node(state: MainState) -> dict:
     if not query:
         return {}
 
-    # Layer 1 / 2: semantic cache lookup
-    # Returns (answer, sources, score): score >= CACHE_THRESHOLD -> L1 direct hit,
+    # Layer 1: conversation entity enrichment
+    enriched_query = _enrich_query(query, messages)
+    # Layer 2: semantic cache lookup
+    # Returns (answer, sources, score): score >= CACHE_THRESHOLD -> L2 direct hit,
     # score >= CONTEXT_THRESHOLD -> L2 supplementary context only.
     cached_answer: str
     cached_sources: list[Source]
-    cached_answer, cached_sources, score = search_conclusions(query)
+    cached_answer, cached_sources, score = search_conclusions(enriched_query)
     cache_hit = score >= CACHE_THRESHOLD
-
-    # Layer 3: conversation entity enrichment
-    enriched_query = _enrich_query(query, messages)
 
     out: dict = {
         "semantic_context": cached_answer,
