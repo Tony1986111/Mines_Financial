@@ -100,14 +100,15 @@ def _enrich_query(query: str, messages: list) -> str:
 def memory_node(state: MainState) -> dict:
     """Read memory layers and inject context before the main pipeline starts.
 
-    Layer 1 - semantic memory (ChromaDB):
-        Search historical Q&A with similarity >= 0.85 and inject the result into
-        semantic_context for synthesize_node to use as supplementary reference.
-
-    Layer 2 - conversation entity enrichment:
+    Layer 1 - conversation entity enrichment:
         Extract company names and fiscal years from recent message history, then
         fill missing entities in follow-up questions so queries like
         "What about their dividends?" do not lose company/fiscal-year context.
+
+    Layer 2 - semantic cache lookup (ChromaDB):
+        Search historical Q&A with similarity >= 0.85 and inject the result into
+        semantic_context for synthesize_node to use as supplementary reference.
+        Uses the enriched query so lookup and save share the same embedding.
     """
     query = state.get("query", "").strip()
     messages = state.get("messages") or []
@@ -115,11 +116,11 @@ def memory_node(state: MainState) -> dict:
     if not query:
         return {}
 
-    # Layer 1 / 2: semantic cache lookup
-    # Returns (answer, sources, score): score >= CACHE_THRESHOLD -> L1 direct hit,
-    # score >= CONTEXT_THRESHOLD -> L2 supplementary context only.
-    # Layer 3: conversation entity enrichment
+    # Layer 1: conversation entity enrichment
     enriched_query = _enrich_query(query, messages)
+    # Layer 2: semantic cache lookup
+    # Returns (answer, sources, score): score >= CACHE_THRESHOLD -> L2 direct hit,
+    # score >= CONTEXT_THRESHOLD -> L2 supplementary context only.
     cached_answer: str
     cached_sources: list[Source]
     cached_answer, cached_sources, score = search_conclusions(enriched_query)
