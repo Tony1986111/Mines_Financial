@@ -105,7 +105,7 @@ mines_financial/
 │
 ├── nodes/                      # Supervisor graph nodes
 │   ├── compress_context.py     # Trim conversation history when context grows long
-│   ├── memory.py               # Semantic cache lookup (L1 / L2 hit detection)
+│   ├── memory.py               # Entity enrichment (L1) then semantic cache lookup (L2 hit detection)
 │   ├── retrieve_decision.py    # Classify query: needs retrieval? needs clarification?
 │   ├── dynamic_tool_selector.py# LLM router: retrieval / news / calculation flags
 │   ├── clarify.py              # Interrupt and ask the user for clarification

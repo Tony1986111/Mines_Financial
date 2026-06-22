@@ -56,8 +56,9 @@ def _enrich_query(query: str, messages: list) -> str:
         Current:  "What about their dividends?"
         Enriched: "What about their dividends? [BHP, FY2024]"
 
-    The enriched query is passed on to query_rewrite_node, which can use the
-    bracketed context to generate the right retrieval keywords.
+    The enriched query is used for the semantic cache lookup in memory_node and
+    is also written back to state for query_rewrite_node to use as retrieval
+    keywords.
     """
     companies_in_q, fys_in_q = _extract_entities(query)
 
