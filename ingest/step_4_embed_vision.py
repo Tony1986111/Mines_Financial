@@ -53,7 +53,7 @@ class RoundRobinEmbeddings:
 
 
 def init_vectorstore() -> Chroma:
-    keys = [k for k in [os.getenv("JINA_API_KEY"), os.getenv("JINA_API_KEY_1")] if k]
+    keys = [k for k in [os.getenv("JINA_API_KEY")] if k]
     if not keys:
         raise RuntimeError("No Jina API key found. Set JINA_API_KEY in .env")
     _log(f"Initialising ChromaDB with {len(keys)} Jina key(s)...")
@@ -168,7 +168,7 @@ def main() -> None:
         _log("Nothing to do.")
         return
 
-    key_count = sum(1 for k in [os.getenv("JINA_API_KEY"), os.getenv("JINA_API_KEY_1")] if k)
+    key_count = sum(1 for k in [os.getenv("JINA_API_KEY")] if k)
     batch_delay = EMBED_BATCH_DELAY // max(key_count, 1)
 
     documents: list[Document] = []

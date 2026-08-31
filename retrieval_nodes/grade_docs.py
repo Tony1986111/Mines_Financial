@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from state import RetrievalState, RetrievedDoc
 from utils.llm import llm
 
-_DOC_PREVIEW_CHARS = 500
+_DOC_PREVIEW_CHARS = 1200
 _SYSTEM_PROMPT = """\
     You are grading retrieved document chunks for relevance to a financial query.
     A document is RELEVANT if it contains specific financial figures, metrics, or facts (revenue, profit, EBITDA, capex, dividends, production volumes, etc.) that could help answer the query.

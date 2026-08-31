@@ -32,7 +32,6 @@ Create a `.env` file in the project root:
 
 ```
 JINA_API_KEY=jina_...          # required — used for embedding (steps 1, 3b, 4)
-JINA_API_KEY_1=jina_...        # optional — second key for round-robin rate spreading
 GOOGLE_API_KEY=AIza...         # required for step 3 (Gemini vision model)
 ```
 

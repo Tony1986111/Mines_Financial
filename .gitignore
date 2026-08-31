@@ -77,3 +77,7 @@ graph_for_studio.py
 
 
 binance/
+# 任何 .env 变体（包括 .env111222 这类无点后缀）
+.env*
+!.env.example
+!**/.env.example

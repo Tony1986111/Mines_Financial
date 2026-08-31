@@ -29,9 +29,9 @@ def _get_vectorstore() -> Chroma:
         return _vs_instance
     with _vs_lock:
         if _vs_instance is None:
-            api_key = os.getenv("JINA_API_KEY") or os.getenv("JINA_API_KEY_1")
+            api_key = os.getenv("JINA_API_KEY")
             if not api_key:
-                raise RuntimeError("JINA_API_KEY or JINA_API_KEY_1 is required.")
+                raise RuntimeError("JINA_API_KEY is required.")
             embeddings = JinaEmbeddings(jina_api_key=api_key, model_name=EMBED_MODEL)
             _vs_instance = Chroma(
                 collection_name=COLLECTION_NAME,

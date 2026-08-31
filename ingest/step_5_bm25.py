@@ -39,7 +39,7 @@ def _log(msg: str) -> None:
 
 def load_all_documents() -> list[Document]:
     """Load every chunk from ChromaDB as LangChain Documents, paginated to avoid SQLite variable limit."""
-    key = os.getenv("JINA_API_KEY") or os.getenv("JINA_API_KEY_1")
+    key = os.getenv("JINA_API_KEY")
     if not key:
         raise RuntimeError("No Jina API key found. Set JINA_API_KEY in .env")
     embeddings = JinaEmbeddings(jina_api_key=key, model_name=EMBED_MODEL)

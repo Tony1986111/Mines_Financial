@@ -3,8 +3,8 @@ retrieve_parallel.py - Parallel Retrieval Node
 
 This module is the core retrieval layer in the RAG architecture.
 It implements hybrid retrieval by combining keyword search (BM25)
-with vector semantic search (ChromaDB), then uses EnsembleRetriever
-to fuse the two result sets with weights.
+with vector semantic search (ChromaDB), fuses the two result sets with
+EnsembleRetriever, and reranks the fused pool with a cross-encoder.
 
 Basic RAG flow:
   User question
@@ -36,6 +36,9 @@ from langchain_classic.retrievers import EnsembleRetriever
 from langchain_community.embeddings import JinaEmbeddings
 # Chroma is the local vector store used to persist and query embeddings.
 from langchain_chroma import Chroma
+# JinaRerank is a cross-encoder reranker: it scores each query/document pair
+# directly instead of fusing rank positions the way EnsembleRetriever does.
+from langchain_community.document_compressors import JinaRerank
 # Document is LangChain's standard container for page content and metadata.
 from langchain_core.documents import Document
 
@@ -55,15 +58,22 @@ EMBED_MODEL = "jina-embeddings-v3"        # Jina embedding model name.
 # --- Retrieval parameters -----------------------------------------------------
 # These values directly affect retrieval quality and are common RAG tuning knobs.
  
-BM25_K = 8     # Number of BM25 candidates to retrieve.
-CHROMA_K = 8     # Number of vector-search candidates to retrieve.
-FINAL_K = 8     # Final number of deduped documents passed downstream.
+# Candidate pools are deliberately wider than FINAL_K: the cross-encoder rerank
+# below picks the final FINAL_K from them by reading content, so a wide pool
+# raises the recall ceiling without increasing downstream token cost.
+BM25_K = 20  # Number of BM25 candidates to retrieve.
+CHROMA_K = 20  # Number of vector-search candidates to retrieve.
+FINAL_K = 8  # Final number of deduped documents passed downstream.
 
 # Fusion weights for the two retrieval paths. They should sum to 1.0.
 # Chroma is weighted slightly higher to favor semantic matching.
 # Increase BM25_WEIGHT when exact financial terms are more important.
 BM25_WEIGHT = 0.45
 CHROMA_WEIGHT = 0.55
+
+# Cross-encoder used to rerank the fused candidate pool. Unlike RRF above, it
+# reads the actual query/document text rather than fusing rank positions only.
+RERANK_MODEL = "jina-reranker-v2-base-multilingual"
 
 
 # --- Lazy retriever loading ---------------------------------------------------
@@ -121,10 +131,9 @@ def _load_vectorstore() -> Chroma:
                 raise FileNotFoundError(
                     f"ChromaDB not found at {CHROMA_DIR}. Run `uv run python ingest.py` first."
                 )
-            # Support two environment variable names for easy key switching.
-            api_key = os.getenv("JINA_API_KEY") or os.getenv("JINA_API_KEY_1")
+            api_key = os.getenv("JINA_API_KEY")
             if not api_key:
-                raise RuntimeError("JINA_API_KEY or JINA_API_KEY_1 is required.")
+                raise RuntimeError("JINA_API_KEY is required.")
             embeddings = JinaEmbeddings(jina_api_key=api_key, model_name=EMBED_MODEL)
             # persist_directory tells Chroma where to store data on disk.
             _vectorstore_instance = Chroma(
@@ -190,6 +199,41 @@ def _document_to_dict(doc: Document) -> RetrievedDoc:
     }
 
 
+def _rerank_documents(docs: list[Document], query: str) -> list[Document]:
+    """
+    Reorder the fused candidate pool by cross-encoder relevance score.
+
+    EnsembleRetriever above fuses BM25 and vector results by rank position only
+    and never reads the text, so a chunk that actually contains the requested
+    figure can be ranked below topically similar boilerplate. This pass sends
+    the query and every candidate to Jina's reranker, which scores each
+    query/document pair directly, and returns the pool in score order.
+
+    A fresh JinaRerank client is built per call on purpose: it holds a
+    requests.Session, which is not thread-safe, and five company branches run
+    in parallel. Construction costs microseconds against a ~800ms API call.
+
+    Args:
+        docs: Fused candidate documents for one company.
+        query: The company-specific retrieval query.
+
+    Returns:
+        The same documents in relevance order, each carrying a
+        "relevance_score" metadata key. Returns docs unchanged when reranking
+        is unavailable, which leaves the caller on EnsembleRetriever's RRF order.
+    """
+    api_key = os.getenv("JINA_API_KEY")
+    if not docs or not api_key:
+        return docs
+    try:
+        reranker = JinaRerank(model=RERANK_MODEL, top_n=FINAL_K, jina_api_key=api_key)
+        return list(reranker.compress_documents(docs, query))
+    except Exception:
+        # Reranking is an optional precision layer, not a dependency. On network
+        # failure, rate limiting, or a bad response, fall back to the RRF order.
+        return docs
+
+
 def _dedupe_documents(docs: list[Document], company: str) -> list[Document]:
     """
     Deduplicate documents, filter by company, and keep at most FINAL_K.
@@ -240,7 +284,9 @@ def retrieve_company_node(state: CompanyDocsState) -> dict:
     1. Read company and query from state.
     2. Build BM25 and Chroma retrievers, then fuse them with EnsembleRetriever.
     3. Invoke retrieval, falling back to BM25 if vector retrieval fails.
-    4. Deduplicate, filter, serialize to dictionaries, and return the list.
+    4. Rerank the fused pool with a cross-encoder, falling back to the RRF
+       order if the reranker is unavailable.
+    5. Deduplicate, filter, serialize to dictionaries, and return the list.
     """
     company = state.get("company", "").strip().upper()
     query = state.get("query",   "").strip()
@@ -269,6 +315,10 @@ def retrieve_company_node(state: CompanyDocsState) -> dict:
         # Vector retrieval depends on an external API. Fall back to company BM25
         # when the vector path fails so the system can still return results.
         docs = bm25_retriever.invoke(query)
+
+    # Cross-encoder rerank: decides which candidates survive the FINAL_K cut by
+    # reading their content, rather than leaving that cut to RRF rank arithmetic.
+    docs = _rerank_documents(docs, query)
 
     # Deduplicate, filter by company, serialize to dicts, and write to state.
     # company_status uses a merge reducer so parallel company nodes don't overwrite each other.
